@@ -10,7 +10,7 @@ function rod(g,a,b,r=.01,c=C.ink,m=M.metal,n=6){g.rod(a,b,r,c,m,n);}
 function frame(g,x,y,z,w,h,trim=C.chalk,arch=false,detail=true){
   // The glazing sits behind a 35-mm reveal. An inset cannot be mistaken for a decal.
   box(g,[x,y,z-.028],[w+.028,h+.028,.026],C.ink,M.paint);
-  box(g,[x,y,z-.009],[w-.04,h-.032,.018],C.glass,M.window);
+  box(g,[x,y,z-.009],[w-.04,h-.032,.018],'#e5c58f',M.window);
   for(const dx of [-1,1])box(g,[x+dx*(w/2+.009),y,z+.012],[.035,h+.07,.045],trim,M.stone);
   box(g,[x,y-h/2-.026,z+.018],[w+.085,.045,.086],trim,M.stone);
   box(g,[x,y+h/2+.018,z+.01],[w+.073,.038,.055],trim,M.stone);
@@ -128,6 +128,12 @@ function oldTown(g,level,variant,detail){
       const t=new MeshBuilder();frame(t,0,y,0,.145,.183,C.chalk,false,detail);
       g.add(t.build('side-reveal'),[x+side*(w/2+.006),0,z],side*Math.PI/2);
     }
+    // Rear elevation: inset glazing with projecting stone lintel/sill.
+    // Only 26/50 triangles per floor; the rear must hold up during rotation too.
+    const back=z-d/2-.006;
+    g.polygon([[x-.13,y-.088,back],[x+.13,y-.088,back],[x+.13,y+.088,back],[x-.13,y+.088,back]],'#e5c58f',M.window,[0,0,-1]);
+    for(const dy of [-.105,.105])box(g,[x,y+dy,back-.016],[.305,.034,.065],C.stone,M.stone);
+    if(detail)for(const dx of [-.147,.147])box(g,[x+dx,y,back-.012],[.027,.18,.046],C.chalk,M.stone);
     if(floor===0&&level>0)balcony(g,x,.46,z+d/2+.034,w*.78,detail);
   }
   roof(g,x,.09+h,z,w,d,variant===0,detail);

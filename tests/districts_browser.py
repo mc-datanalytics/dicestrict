@@ -6,7 +6,7 @@ OUT=ROOT/'test-results'/'districts';OUT.mkdir(parents=True,exist_ok=True)
 URL='http://127.0.0.1:4408'
 FIXTURE="""async()=>{const {app}=await import('/src/main.js');const {createGame,assertState}=await import('/src/game/engine.js');const {BOARD}=await import('/src/game/board.js');clearTimeout(app.botTimer);clearTimeout(app.busyTimer);const s=createGame([{id:'you',name:'Vous'},{id:'friend',name:'Ami'}],42,{id:'district-render-fixture',casino:true});s.players.forEach(p=>p.cash=20000);for(const t of BOARD)if(t.kind==='lot'){s.properties[t.id].owner=s.players[t.group%2].id;s.properties[t.id].level=[0,3,4].includes(t.group)?3:t.group===2?2:1;}assertState(s);app.settings.reduced=true;app.scene.configure({quality:'high',reduced:true,living:false,weather:false,dayMode:'day'});app.accept(s);cancelAnimationFrame(app.scene.raf);globalThis.assetApp=app;app.scene.dirty=true;app.scene.render(performance.now()+100);return app.scene.renderer.stats;}"""
 async def render(page):
-    return await page.evaluate("()=>{const s=assetApp.scene;s.dirty=true;s.render(performance.now()+100);return {...s.renderer.stats,glError:s.renderer.gl.getError(),districts:s.city.districts.stats,marina:s.city.marina.stats};}")
+    return await page.evaluate("()=>{const s=assetApp.scene;s.dirty=true;s.render(performance.now()+100);return {...s.renderer.stats,glError:s.renderer.gl.getError(),contextLost:s.renderer.gl.isContextLost(),districts:s.city.districts.stats,marina:s.city.marina.stats};}")
 async def legacy(page,enabled):
     await page.evaluate("""async enabled=>{const s=assetApp.scene;const {parcelGeometry}=await import('/src/scene/living-city.js');s.city.districts.enabled=!enabled;s.renderer.drop(s.city.parcelMesh);s.city.parcelMesh=s.renderer.mesh(parcelGeometry(s.city.city,enabled));s.dirty=true;}""",enabled)
 async def view(page,config):
@@ -14,11 +14,32 @@ async def view(page,config):
     await render(page)
 async def capture(page,name,full=True):
     await render(page)
-    await page.screenshot(path=str(OUT/name),full_page=full)
+    await page.screenshot(path=str(OUT/name),full_page=full,timeout=90000)
 async def benchmark(page,quality):
-    return await page.evaluate("""async quality=>{const s=assetApp.scene;s.configure({quality,reduced:true,living:false});const gl=s.renderer.gl;const submit=[],blocking=[];for(let i=0;i<34;i++){const start=performance.now();s.dirty=true;s.render(performance.now()+100);const cpu=s.renderer.stats.cpuSubmitMs;gl.finish();const wait=performance.now()-start;if(i>5){submit.push(cpu);blocking.push(wait);}await new Promise(r=>setTimeout(r,2));}const q=(a,p)=>[...a].sort((x,y)=>x-y)[Math.floor((a.length-1)*p)];return {samples:submit.length,cpuSubmitMs:{p50:q(submit,.5),p95:q(submit,.95)},softwareRenderBlockingMs:{p50:q(blocking,.5),p95:q(blocking,.95)},timerQuerySupported:!!gl.getExtension('EXT_disjoint_timer_query_webgl2'),stats:s.renderer.stats};}""",quality)
+    # gl.finish alone did not establish trustworthy completion timings in the first
+    # CI attempt. Read back 1 pixel from every frame, with a real yield between
+    # frames: includes readback / GPU-process synchronization, NOT pure GPU time.
+    return await asyncio.wait_for(page.evaluate("""async quality=>{
+      const s=assetApp.scene;s.configure({quality,reduced:true,living:false});
+      const gl=s.renderer.gl,submit=[],blocking=[],pixel=new Uint8Array(4);
+      for(let i=0;i<20;i++){
+        if(gl.isContextLost())throw Error('Context lost during benchmark');
+        const start=performance.now();s.dirty=true;s.render(performance.now()+100);
+        const cpu=s.renderer.stats.cpuSubmitMs;
+        gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+        const elapsed=performance.now()-start,error=gl.getError();
+        if(error!==gl.NO_ERROR||pixel[3]!==255)throw Error(`Invalid frame readback: ${error} / ${pixel}`);
+        if(i>=4){submit.push(cpu);blocking.push(elapsed);}
+        await new Promise(r=>setTimeout(r,25));
+      }
+      const q=(a,p)=>[...a].sort((x,y)=>x-y)[Math.floor((a.length-1)*p)];
+      return {samples:submit.length,warmup:4,cpuSubmitMs:{p50:q(submit,.5),p95:q(submit,.95)},
+        softwareFrameAndReadbackMs:{p50:q(blocking,.5),p95:q(blocking,.95)},
+        method:'Synchronous 1x1 RGBA readback after each forced frame; 25ms yield; includes IPC/readback; not physical GPU time or gameplay FPS.',
+        finalPixel:Array.from(pixel),contextLost:gl.isContextLost(),stats:s.renderer.stats};
+    }""",quality),timeout=240)
 async def main():
-    report={'environment':{'os':platform.platform(),'machine':platform.machine(),'python':platform.python_version(),'cpu':subprocess.check_output(['sh','-c','grep -m1 "model name" /proc/cpuinfo || true'],text=True).strip(),'node':subprocess.check_output(['node','--version'],text=True).strip(),'device':'GitHub Actions Linux VM, Chromium ANGLE SwiftShader SOFTWARE WebGL2. No physical phone.'},'checks':[],'errors':[],'comparisons':{},'captures':[]}
+    report={'environment':{'os':platform.platform(),'machine':platform.machine(),'python':platform.python_version(),'cpu':subprocess.check_output(['sh','-c','grep -m1 "model name" /proc/cpuinfo || true'],text=True).strip(),'node':subprocess.check_output(['node','--version'],text=True).strip(),'device':'GitHub Actions Linux VM, Chromium ANGLE SwiftShader SOFTWARE WebGL2. No physical phone.'},'checks':[],'errors':[],'console':[],'comparisons':{},'captures':[]}
     server=subprocess.Popen(['node','scripts/dev.mjs','--port','4408'],cwd=ROOT,stdout=subprocess.DEVNULL)
     browser=None
     try:
@@ -32,6 +53,7 @@ async def main():
             browser=await pw.chromium.launch(**options);report['environment']['chromium']=browser.version
             page=await browser.new_page(viewport={'width':1600,'height':1000},device_scale_factor=1)
             page.on('pageerror',lambda e:report['errors'].append(str(e)))
+            page.on('console',lambda m:report['console'].append(m.text) if m.type in ['error','warning'] and len(report['console'])<30 else None)
             await page.goto(URL);await page.wait_for_function("!document.querySelector('.scene-loading')")
             assert await page.locator('.scene-error').count()==0,'WebGL2 did not initialize'
             await page.evaluate(FIXTURE)
@@ -44,13 +66,6 @@ async def main():
                     report['captures'].append(f'{label}-{"before" if before else "after"}.png')
             report['checks'].append('8 real engine A/B screenshots: identical state, camera, viewport, light; only six district models/public furniture differ. Marina retained.')
             await view(page,{})
-            for quality in ['high','low']:
-                pair={}
-                for before in [True,False]:
-                    await legacy(page,before);pair['before' if before else 'after']=await benchmark(page,quality)
-                report['comparisons'][quality]=pair
-                a=pair['after']['stats'];assert a['triangles']<120000,a;assert a['drawCalls']<180,a;assert a['gpuBufferBytes']<18*1024*1024,a
-            report['checks'].append('Normal-view geometry <120k triangles, <180 color draws, <18 MiB geometry buffers in both quality modes; software timings recorded, not hardware FPS claims.')
             await page.evaluate("()=>assetApp.scene.configure({quality:'high',reduced:true,living:false,dayMode:'night'})")
             await capture(page,'normal-night.png')
             await page.evaluate("()=>assetApp.scene.configure({dayMode:'day'})")
@@ -75,18 +90,30 @@ async def main():
             assert report['mobileEmulation']['districts']['detail']=='low'
             assert await mobile.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
             report['checks'].append('390x844 touch viewport emulation, DPR 2 capped by low mode; no horizontal overflow; NOT a real-phone performance test.')
+            await mobile.close()
             gallery=await browser.new_page(viewport={'width':1200,'height':1000},device_scale_factor=1)
             gallery.on('pageerror',lambda e:report['errors'].append(str(e)))
             await gallery.goto((ROOT/'assets/districts/review.html').as_uri());await gallery.wait_for_function('!!globalThis.assetReview')
             galleryStats={}
             for name in ['oldtown-0-level-3','oldtown-1-level-2','financial-0-level-3','financial-1-level-3','industrial-0-level-3','industrial-1-level-2','yacht']:
                 await gallery.evaluate("name=>{assetReview.select(name,'high');assetReview.setLight('studio');assetReview.setView(.62,.44);}",name)
-                await gallery.screenshot(path=str(OUT/f'studio-{name}.png'))
+                await gallery.screenshot(path=str(OUT/f'studio-{name}.png'),timeout=90000)
                 await gallery.evaluate('assetReview.setView(3.6,.38)')
-                await gallery.screenshot(path=str(OUT/f'studio-rear-{name}.png'))
+                await gallery.screenshot(path=str(OUT/f'studio-rear-{name}.png'),timeout=90000)
                 galleryStats[name]=await gallery.evaluate('({stats:assetReview.renderer.stats,glError:assetReview.renderer.gl.getError()})')
                 assert galleryStats[name]['glError']==0
             report['gallery']=galleryStats;report['checks'].append('14 studio screenshots with same WebGL2 renderer, no bloom/blur/shadows: 7 real models, front and rear views, GL error zero.')
+            await gallery.close()
+            await page.evaluate(FIXTURE)
+            await view(page,{})
+            for quality in ['high','low']:
+                pair={}
+                for before in [True,False]:
+                    await legacy(page,before);pair['before' if before else 'after']=await benchmark(page,quality)
+                report['comparisons'][quality]=pair
+                a=pair['after']['stats'];assert a['triangles']<120000,a;assert a['drawCalls']<180,a;assert a['gpuBufferBytes']<18*1024*1024,a
+            report['checks'].append('Normal-view geometry <120k triangles, <180 color draws, <18 MiB geometry buffers in both quality modes; per-frame synchronous readbacks verified. Software diagnostics, not hardware FPS claims.')
+            await capture(page,'post-benchmark-verification.png')
             assert not report['errors'],report['errors']
             await browser.close();browser=None
     except Exception:
