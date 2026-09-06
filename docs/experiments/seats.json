@@ -1,0 +1,25 @@
+{
+  "baseSeed": 20260906,
+  "samples": 1000,
+  "rotateSeats": false,
+  "lineup": [
+    "balanced",
+    "balanced",
+    "balanced",
+    "balanced"
+  ],
+  "baseline": {
+    "rounds": 12,
+    "mobility": 2,
+    "finishOnBankruptcy": false,
+    "casino": false,
+    "casinoPolicy": "none"
+  },
+  "candidate": {
+    "rounds": 12,
+    "mobility": 2,
+    "finishOnBankruptcy": false,
+    "casino": false,
+    "casinoPolicy": "none"
+  }
+}

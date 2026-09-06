@@ -12,6 +12,7 @@ test('development HTTP and signaling: private rooms, identity, lock and host los
  t.after(()=>{for(const p of peers)p.ws.close();server.kill('SIGTERM');});
  let up=false;for(let i=0;i<100;i++){try{const r=await fetch(base);if(r.ok){up=true;break;}}catch{}await wait(30);}assert.ok(up);
  assert.equal((await fetch(`${base}/src/main.js`)).status,200);assert.equal((await fetch(`${base}/.env`)).status,404);assert.equal((await fetch(`${base}/package.json`)).status,404);assert.equal((await fetch(base,{method:'POST'})).status,405);
+ const lab=await fetch(`${base}/lab.html`);assert.equal(lab.status,200);assert.match(await lab.text(),/planned-games/);
  const h=await client();peers.push(h);h.send({type:'create',name:'Host'});const host=await h.get('room');assert.match(host.code,/^[A-Z2-9]{8}$/);assert.equal(host.selfId,host.hostId);
  const g=await client();peers.push(g);g.send({type:'join',name:'Guest',code:host.code});const guest=await g.get('room');assert.notEqual(host.selfId,guest.selfId);
  g.send({type:'signal',to:host.selfId,from:'forged',signal:{candidate:{candidate:'test'}}});const signal=await h.get('signal');assert.equal(signal.from,guest.selfId);

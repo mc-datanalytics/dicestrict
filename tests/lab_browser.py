@@ -25,7 +25,7 @@ async def main():
             browser=await pw.chromium.launch(**opts)
             ctx=await browser.new_context(viewport={'width':1440,'height':1000},accept_downloads=True)
             page=await ctx.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
-            await page.goto(URL+'/lab.html');await page.evaluate("localStorage.setItem('dicestrict:casual:v4','SENTINEL-LIVE-MATCH')")
+            response=await page.goto(URL+'/lab.html');assert response.status==200,await page.content();await page.evaluate("localStorage.setItem('dicestrict:casual:v4','SENTINEL-LIVE-MATCH')")
             assert await page.locator('#planned-games').inner_text()=='800'
             await run(page)
             path=await download(page,'#export-json','lab-report.json');report=json.loads(path.read_text())

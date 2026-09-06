@@ -1,3 +1,12 @@
+# 0.5.0 — Balance Lab
+
+- Laboratoire facultatif dans `/lab.html` et HTML autonome : A/B, graines partagées, permutations, quatre profils, visualisation et export des résultats.
+- CLI reproductible, métriques issues des commandes du vrai moteur, bootstrap de blocs de graines, échecs conservés et dénominateurs explicites.
+- Replays vérifiés commande par commande, lecteur 3D et mode textuel ; aucune sauvegarde de jeu ni récompense utilisée.
+- Bots : levée d’hypothèque avec réserve suffisante. Rendu : passage aux mouvements réduits corrigé en cours de déplacement, invalidation de taille dédupliquée.
+- Bundles séparés : le lab n'est pas distribué dans le jeu ordinaire ou la cible CrazyGames. Empreintes SHA-256 des sources expérimentales.
+- 80 tests Node au moment de la livraison ; les vérifications navigateur sont conservées dans les artefacts de CI.
+
 # 0.4.0 — Living city / match-only casino
 
 - Sixteen state-driven city parcels; purchases, levels, owner colors and mortgages affect geometry and activity.

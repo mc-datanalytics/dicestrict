@@ -2,96 +2,82 @@
 
 **Roll. Build. Rule.** Une ville miniature, quatre ambitions, un lancer à la fois.
 
-Jeu de stratégie immobilière original en 3D pour navigateur, préparé pour une future distribution sur CrazyGames. Ville : **Aurora**. Interface française, direction crème / vert profond / quartiers pastel. Alpha **0.4.0**, pas une sortie commerciale.
+Jeu original de stratégie immobilière 3D pour navigateur. Ville : **Aurora** ; interface française, crème / vert profond / quartiers pastel. **Alpha 0.5.0**, pas une sortie commerciale. La branche de travail est `feat/balance-lab-0-5` ; la distribution CrazyGames n'est pas publiée.
 
-## Jouer et développer
+## Jouer et ouvrir le lab
 
-Node.js 22 ou supérieur. Aucune dépendance JavaScript à installer pour développer, tester le moteur ou construire le client.
+Node.js 22+, aucune dépendance JavaScript à installer.
 
 ```sh
 git clone https://github.com/mc-datanalytics/dicestrict.git
 cd dicestrict
+git switch feat/balance-lab-0-5
 npm run dev
 ```
 
-Ouvrir **http://127.0.0.1:4173**. La partie locale démarre directement avec trois IA. Pour essayer le multijoueur, ouvrir deux fenêtres, créer un salon dans la première, puis entrer son code dans l'autre. Le serveur fourni sert les fichiers et la signalisation uniquement : les actions de jeu transitent dans des DataChannels WebRTC.
+Jeu : **http://127.0.0.1:4173**. Laboratoire : **http://127.0.0.1:4173/lab.html**.
 
 ```sh
-npm run check   # syntaxe et imports locaux
-npm test        # règles, protocole, signalisation et simulations déterministes
-npm run build  # dist/ : client statique et démonstration HTML autonome
+npm run check
+npm test
+npm run build       # jeu statique + dist/dicestrict-offline.html
+npm run build:lab   # ajoute lab.html et dicestrict-lab-offline.html
 npm run preview
 ```
 
-`dist/dicestrict-offline.html` s'ouvre directement dans un navigateur pour le mode local. Le dossier `dist/` peut être hébergé sur un serveur statique ; cela ne déploie PAS la signalisation.
+Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le jeu autonome est local ; le multijoueur nécessite une signalisation. Le lab embarque son Worker et n'utilise aucune sauvegarde de jeu. La compilation ordinaire exclut le lab ; `--crazygames --lab` est interdit.
 
-## Ce qui existe
+## Nouveautés 0.5
 
-- Plateau original de 28 cases, 16 propriétés réparties en 8 quartiers ; 2 à 4 joueurs.
-- Achats, loyers, bonus de quartier complet, constructions équilibrées jusqu'au niveau 3, hypothèques, liquidation automatique, faillite et victoire au patrimoine.
-- **Enchères au tour par tour** après un achat refusé, par paliers de 20 crédits. Les IA savent enchérir et se retirer.
-- Ville WebGL2 procédurale : bâtiments, végétation, pions, dés animés, ombres, sélection des cases, rotation et zoom. Le rendu GPU s'arrête lorsque la scène est immobile.
-- Sauvegarde locale, aide, historique, réglages son/qualité/mouvements réduits, affichage mobile et alternative jouable sans WebGL.
-- Salons WebRTC amicals, code d'invitation, synchronisation par commandes, resynchronisation, suspension en cas de déconnexion et revanche dans le même salon.
-- Adaptateur CrazyGames v3 : SDK optionnel, informations de salon, invitations, entrée directe en multijoueur, noms de compte et priorité au réglage audio de la plateforme.
+Le [Balance Lab](docs/BALANCE_LAB.md) fait jouer **le vrai moteur**, compare A/B, permute les sièges, utilise quatre profils de bots et calcule des intervalles par bloc de graine. Configuration des manches, mobilité, règle de clôture et casino ; exports JSON/CSV, empreintes des sources et replays vérifiés en 3D ou texte. Aucun ajustement automatique des règles.
 
-## Nouveautés 0.4 — la ville reflète la partie
+```sh
+npm run balance -- --experiment casino --samples 500 --seed 982451653
+npm run balance -- --config docs/experiments/seats.json --out lab-results/seats
+npm run balance -- --verify-replay lab-results/replay.json
+```
 
-Les seize parcelles du centre reprennent réellement achats, constructions, couleurs de propriétaire et hypothèques. Commerces, terrasses et tours remplacent progressivement les parcelles libres ; le trafic et les passants sont plus présents dans les quartiers développés. Grues temporaires, célébration de quartier, bus, fontaine, métro de surface, ambulance ponctuelle, enseignes fictives, pluie légère et cycle jour/nuit donnent vie à la scène. Les réglages permettent une ville figée, une météo désactivée ou une nuit fixe. Aucun de ces objets visuels n'est synchronisé sur le réseau.
+[Premières mesures : 10 000 trajectoires, zéro échec](docs/experiments/BASELINE_0_5.md). Les répétitions et rotations ne sont pas des observations indépendantes. Ces résultats concernent des bots, pas des humains ; ils ne mesurent pas le plaisir ni la durée réelle en minutes.
 
-Le **casino facultatif** propose une roulette rouge/noir, exclusivement avec les crédits de la partie : pas d'achat, conversion, retrait ou récompense de compte. Une mise de 20/40/60 maximum par manche, hors tour, avec confirmation et réserve de 200 crédits. Gains et pertes modifient le capital du plateau. Le panneau ne suspend pas la table et laisse la priorité à votre tour. L'hôte peut désactiver le casino avant le lancement. Ce n'est pas une assurance anti-triche : l'aléatoire P2P est public et prédictible.
+Dans le jeu, les bots savent lever une hypothèque après reconstitution d'une réserve suffisante. Désactiver les mouvements pendant un déplacement place le pion à son arrivée ; les invalidations graphiques de taille identique sont filtrées. Le moteur et le protocole restent v4 : les règles n'ont pas été modifiées par le lab.
 
-Voir [la spécification et les limites de la ville vivante](docs/LIVING_CITY.md). Le protocole et les sauvegardes passent en **v4**, sans import des sauvegardes v3 (non supprimées). Les preuves de validation sont séparées par version dans `docs/VALIDATION.md`.
+## Fonctionnalités du jeu
 
-## Ce que les retours joueurs ont changé en 0.3
+- Plateau original de 28 cases, 16 terrains / 8 quartiers, 2 à 4 joueurs, IA, achats, loyers, constructions équilibrées, hypothèques, enchères, faillites et score au patrimoine.
+- Négociation publique non modale, contre-offres et échanges atomiques hors tour aux phases sûres. Deux jetons Mobilité gratuits permettent un choix à ±1 case après le lancer. Formats Blitz 6 / Standard 12 / Grand District 18 manches.
+- Ville procédurale WebGL2 : parcelles liées aux propriétaires, niveaux et hypothèques ; commerces, terrasses, circulation, bus, piétons, grues, célébrations, éclairage jour/nuit, métro de surface, ambulance ponctuelle et pluie légère. Réglages qualité, mouvements réduits, ville figée et météo. [Spécification 0.4](docs/LIVING_CITY.md).
+- Casino facultatif rouge/noir : une mise de 20/40/60 crédits maximum par manche, hors tour, réserve de 200, confirmation. **Uniquement le capital de la partie**, sans achat, conversion, retrait, recharge publicitaire ou récompense de compte. Gains et pertes affectent les investissements.
+- Sauvegarde locale, aide, historique, affichage mobile et repli sans WebGL. Salons WebRTC, code d'invitation, resynchronisation, suspension lors d'une déconnexion et revanche dans le même salon.
 
-Voir l'[analyse critique des avis et les exigences de livraison](docs/research/PLAYER_FEEDBACK.md). Elle distingue les observations, les vérifications externes et les idées à éprouver : ce n'est pas une collecte exhaustive d'avis.
-
-- **Négocier sans arrêter la table** : panneau non modal, offres publiques de terrains et de crédits, acceptation, refus, annulation et contre-offre, y compris hors tour. Conclusion avant le lancer ou en fin de tour ; pas pendant un déplacement, un achat ou une enchère. Les conditions sont revérifiées à l'acceptation, sans transfert partiel.
-- **Deux jetons Mobilité identiques pour tous** : après le lancer, trajet normal gratuit ou arrivée à ±1 case contre un jeton. Le hasard n'est pas supprimé. Une fois les jetons épuisés, déplacement automatique. Pas d'achat ni de recharge de jetons.
-- **Formats explicites** : Blitz, 6 manches maximum et fin commune dès la première faillite ; Standard, 12 manches ; Grand District, 18 manches. Le nombre de manches est plafonné, pas la durée réelle en minutes. Les invités voient les règles avant le lancement.
-- **Clôture annoncée** dans les deux dernières manches, sans hausse surprise de loyer.
-
-Les offres n'immobilisent pas les fonds et expirent après un cycle de table compté en fins de tour. Une offre ouverte par joueur, trois propositions par tour actif. Les quartiers construits et terrains hypothéqués ne sont pas échangeables. Chaque partie doit fournir quelque chose. Les IA répondent par une heuristique simple ; aucune promesse d'équité économique ou de résistance à la collusion.
-
-En 0.3, le moteur et le protocole sont passés en **version 3** (historique). Les sauvegardes v2 ne sont pas migrées : elles restent sous leur ancienne clé locale, et la version 0.3 utilise une nouvelle clé. Les clients v2/v3 ne peuvent pas participer à la même session.
+Les sauvegardes et le réseau utilisent le schéma v4 depuis 0.4. Les anciennes sauvegardes v3 ne sont ni importées ni supprimées. Les profils Prudent, Bâtisseur et Collectionneur sont sélectionnables dans le lab ; le jeu garde Équilibré par défaut. Les bots du lab n'initient pas de négociations.
 
 ## Validation
 
-La suite Node 0.4 contient **64 tests**. Les nouveaux tests couvrent le casino, ses limites, son réseau, la projection économique, les budgets visuels et 100 trajectoires supplémentaires avec casino. Le corpus historique 0.3 contenait 52 tests. Elle simule 500 parties de référence (44 337 actions) et 300 parties avec mobilité et offres (40 889 actions, dont 3 207 propositions), puis vérifie leurs replays identiques. Ces 800 parties synthétiques valident des invariants, pas le plaisir ou la durée de parties humaines. Elle vérifie également les frontières du protocole et le serveur de signalisation sur de vraies connexions WebSocket locales.
-
-`tests/browser.py` couvre le rendu WebGL2, la sauvegarde, les enchères, deux contextes Chromium reliés en WebRTC, la revanche, la perte de l'hôte, le mobile, le mode de secours, les choix de mobilité, les offres/contre-offres en WebRTC et le HTML autonome. Le résultat navigateur effectif est fourni par **GitHub Actions**, avec captures d'écran dans l'artefact `dicestrict-build-and-browser-report`. L'existence des tests ne signifie pas que tous les appareils et réseaux ont été validés.
+**80 tests Node**, plus deux suites navigateur distinctes. Les résultats réellement vérifiés, environnements et limites sont dans [VALIDATION.md](docs/VALIDATION.md). Les artefacts GitHub Actions contiennent les captures, rapports, sources exactes et builds ; un artefact peut également exister après un échec, donc vérifier la conclusion du run.
 
 ```sh
+npm run check && npm test && npm run build
 python -m pip install playwright==1.57.0
-python -m playwright install chromium
+python -m playwright install --with-deps chromium
 python tests/browser.py
+npm run build:lab
+python tests/lab_browser.py
 ```
 
-## Hébergement et récompenses : frontière de sécurité
+## Réseau, confiance et CrazyGames
 
-**Aucune XP ni monnaie permanente n'est attribuée par ce client.** Les crédits du plateau sont fictifs et limités à la partie.
+Le serveur `scripts/dev.mjs` est une signalisation **de développement**, bornée, en mémoire, liée par défaut à `127.0.0.1`. Il n'exécute pas la partie, ne fournit pas TURN et ne survit pas à un redémarrage. Le navigateur hôte arbitre ; les pairs rejouent les commandes. Les graines publiques et checksums ne rendent pas un hôte malveillant fiable.
 
-Le navigateur hôte arbitre les parties amicales. Les clients rejouent les commandes pour détecter les divergences, mais le hachage de l'état et le générateur aléatoire déterministe ne constituent pas un dispositif anti-triche. Un hôte modifié peut tricher. Une partie P2P terminée n'est jamais une preuve suffisante pour créditer un compte.
-
-Pour des parties récompensées, il reste à construire un arbitre serveur léger, une authentification vérifiée côté serveur et un registre de récompenses transactionnel/idempotent. Aucun Supabase existant n'a été modifié et aucun service payant n'a été déployé.
-
-## Préparer CrazyGames
+**Aucune XP ni monnaie permanente n'est attribuée.** Un résultat P2P n'est jamais une preuve suffisante pour créditer un compte. Arbitrage serveur, authentification vérifiée et registre transactionnel/idempotent restent à construire. Aucun Supabase existant ni service payant n'est modifié.
 
 ```sh
 SIGNAL_URL=wss://votre-service.example/signal npm run build -- --crazygames
 ```
 
-Cette commande active le SDK officiel dans le client statique et refuse de produire une configuration multijoueur sans signalisation. `TURN_CREDENTIALS_URL=https://...` permet de fournir un endpoint de relais à identifiants éphémères. Ne jamais mettre une clé privée ou un secret TURN permanent dans `config.js`.
+Le build active l'adaptateur SDK optionnel et exige une signalisation configurée ; il ne déploie rien. `TURN_CREDENTIALS_URL=https://...` peut désigner un endpoint à identifiants éphémères. Ne jamais publier un secret TURN permanent, une clé privée ou une clé service-role. L'intégration finale reste à recetter dans le portail CrazyGames.
 
-Le service `scripts/dev.mjs` est **réservé au développement**, avec salons en mémoire et capacité bornée. Il n'est pas une infrastructure de production, ne fournit pas de TURN et ne survit pas à un redémarrage. Par défaut il écoute uniquement sur `127.0.0.1`. Tester les autres appareils exige un hébergement sécurisé ou un environnement HTTPS adapté.
+Pas encore de matchmaking public, reconnexion après rafraîchissement, migration de l'hôte, minuterie AFK, comptes persistants, boutique ou classement serveur. Safari/iOS, Android réel, réseaux mobiles et TURN ne sont pas validés par des tests Chromium locaux. Aucune capacité à des millions de parties n'est démontrée.
 
-Voir [architecture](docs/ARCHITECTURE.md), [plan de livraison](docs/ROADMAP.md), [validation](docs/VALIDATION.md) et [sécurité](SECURITY.md).
-
-## Limites connues
-
-Pas encore de matchmaking public, reprise après rafraîchissement en multijoueur, migration de l'hôte, minuteurs AFK, éditeur complet de règles, restructuration, comptes persistants, boutique, publicités ou classement serveur. Le réglage et la connexion réels au SDK restent à recetter dans le portail CrazyGames. La capacité à accueillir des millions de parties n'a pas été mesurée.
-
-Le code et les éléments visuels sont originaux ; aucun plateau, texte de cartes ou élément graphique de Monopoly n'est repris. Le nom DICESTRICT est un nom de travail : sa disponibilité commerciale reste à vérifier.
+Voir [architecture](docs/ARCHITECTURE.md), [sécurité](SECURITY.md), [roadmap](docs/ROADMAP.md) et [analyse des retours](docs/research/PLAYER_FEEDBACK.md). Le nom DICESTRICT reste à vérifier commercialement ; aucun plateau, texte de cartes ou élément graphique de Monopoly n'est repris.
 
 Copyright © 2026 M&G Group. Tous droits réservés. Aucune licence open source n'est accordée.

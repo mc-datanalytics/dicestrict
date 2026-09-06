@@ -1,4 +1,10 @@
-# Architecture 0.3
+# Architecture 0.5
+
+## Laboratoire isolé
+
+`src/lab/core.js` orchestre `createGame` / `applyAction` sans session réseau, stockage ou récompense. `src/lab/worker.js` isole les calculs, `statistics.js` agrège par bloc de graine et `app.js` affiche les résultats et un replay en lecture seule. `scripts/balance.mjs` utilise les mêmes fonctions côté Node. Les versions lab/politiques et empreintes des sources accompagnent les rapports. Voir `BALANCE_LAB.md` pour les dénominateurs et limites.
+
+La 0.4 a ajouté `CASINO_BET`, `src/game/casino.js` et `src/scene/living-city.js`. Le protocole courant est v4 (identifiant de partie et révision conservés). La 0.5 ne change ni les règles de ce réducteur ni le schéma des parties. Le lab ne se branche jamais sur `RoomSession`.
 
 ## Découpage
 
@@ -17,9 +23,9 @@
 
 ## État et commandes
 
-Les commandes acceptées sont `ROLL`, `BUY`, `SKIP`, `END`, `UPGRADE`, `SELL_LEVEL`, `MORTGAGE`, `REDEEM`, `BID`, `PASS`, `MOVE`, `OFFER_DEAL`, `ACCEPT_DEAL`, `DECLINE_DEAL`, `CANCEL_DEAL`. Le moteur clone l'état, vérifie l'acteur et la phase, applique la règle, incrémente la révision et vérifie les invariants. `currentPlayer` retourne l'enchérisseur pendant une enchère, sans modifier le propriétaire du tour normal.
+Les commandes acceptées sont `ROLL`, `BUY`, `SKIP`, `END`, `UPGRADE`, `SELL_LEVEL`, `MORTGAGE`, `REDEEM`, `BID`, `PASS`, `MOVE`, `OFFER_DEAL`, `ACCEPT_DEAL`, `DECLINE_DEAL`, `CANCEL_DEAL`, `CASINO_BET`. Le moteur clone l'état, vérifie l'acteur et la phase, applique la règle, incrémente la révision et vérifie les invariants. `currentPlayer` retourne l'enchérisseur pendant une enchère, sans modifier le propriétaire du tour normal.
 
-Le protocole v3 porte l'identifiant de partie et sa révision. Le transport associe l'identité à la connexion ; il n'utilise jamais un identifiant d'acteur revendiqué par le client. Le checksum FNV-1a détecte les divergences accidentelles, pas une attaque. Les snapshots sont validés structurellement mais restent des données de l'hôte non fiables.
+Le protocole v4 porte l'identifiant de partie et sa révision. Le transport associe l'identité à la connexion ; il n'utilise jamais un identifiant d'acteur revendiqué par le client. Le checksum FNV-1a détecte les divergences accidentelles, pas une attaque. Les snapshots sont validés structurellement mais restent des données de l'hôte non fiables.
 
 ## Mobilité et négociation
 
