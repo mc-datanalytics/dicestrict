@@ -1,0 +1,57 @@
+name: Phase 4 integration gate
+on:
+  push:
+    branches: [feat/city-harmony-phase4]
+    paths: [.github/workflows/phase4-integration-gate.yml]
+permissions:
+  contents: write
+jobs:
+  gate:
+    if: github.ref == 'refs/heads/feat/city-harmony-phase4'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - name: Commit four explicit fixture disposals on the isolated branch only
+        run: |
+          python - <<'PY'
+          import hashlib,pathlib
+          p=pathlib.Path('tests/browser.py');s=p.read_text()
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='137a71b99ebc867b481fb465661613de704b67ef1ffcec2bbc925eb5e77d9be3'
+          edits=[("            mobile=await browser.new_page","            await guest_ctx.close()\n            mobile=await browser.new_page"),("            # Also execute the generated standalone artifact, not only native source modules.","            await mobile.close()  # Finished fixture: release its software WebGL context.\n            # Also execute the generated standalone artifact, not only native source modules."),("            fallback=await browser.new_page()","            await offline.close()\n            fallback=await browser.new_page()"),("            # Lifecycle fixtures: these check UI/recording scope, not human outcomes.","            await fallback.close()\n            # Lifecycle fixtures: these check UI/recording scope, not human outcomes.")]
+          for a,b in edits:
+              assert s.count(a)==1
+              s=s.replace(a,b)
+          p.write_text(s)
+          PY
+          git config user.name 'M&G Group'
+          git config user.email '119437439+mc-datanalytics@users.noreply.github.com'
+          git add tests/browser.py
+          git commit -m 'test: dispose completed browser fixtures before isolated lifecycle checks'
+          git push origin HEAD:refs/heads/feat/city-harmony-phase4
+      - run: npm run check && npm test && npm run build
+      - run: npm run assets:export && npm run assets:review
+      - run: pip install playwright==1.57.0 && python -m playwright install --with-deps chromium
+      - run: python tests/browser.py
+      - run: python tests/districts_browser.py
+      - run: npm run build:lab && python tests/lab_browser.py
+      - run: python tests/playtest_browser.py
+      - name: Exact tested source and result
+        if: always()
+        run: |
+          git rev-parse HEAD > test-results/tested-commit.txt
+          git archive --format=tar -o source.tar HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4-integration-gate
+          path: |
+            source.tar
+            dist/
+            test-results/
+            assets/
+          retention-days: 14
