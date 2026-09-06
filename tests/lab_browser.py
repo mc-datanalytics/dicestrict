@@ -39,7 +39,9 @@ async def main():
             actual={k:v for k,v in report.items() if k!='source'};assert actual==expected
             checks.append('Browser Worker report matches Node result exactly, including bootstrap intervals and per-game checksums')
             csv=await download(page,'#export-csv','lab-data.csv');assert len(csv.read_text().splitlines())==25
+            await page.evaluate('window.scrollTo(0,0)');await page.wait_for_timeout(100)
             await page.screenshot(path=str(OUT/'lab-desktop.png'),full_page=True)
+            await page.screenshot(path=str(OUT/'lab-desktop-top.png'))
             await page.locator('#load-replay').click();await page.wait_for_function("document.querySelector('#status').textContent.startsWith('Rejeu vérifié')",timeout=30000)
             assert await page.locator('#replay-fallback').is_hidden()
             await page.locator('#replay-step').evaluate("el=>{el.value=el.max;el.dispatchEvent(new Event('input',{bubbles:true}));}")
@@ -55,8 +57,11 @@ async def main():
             await page.wait_for_timeout(500);assert not await page.locator('#run').is_disabled()
             checks.append('Stop terminates the Worker; partial samples do not become a completed report')
             await page.set_viewport_size({'width':390,'height':844});await run(page,2)
-            assert await page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),await page.evaluate('document.documentElement.scrollWidth')
+            await page.evaluate('window.scrollTo(0,0)');await page.wait_for_timeout(100)
             await page.screenshot(path=str(OUT/'lab-mobile.png'),full_page=True)
+            layout=await page.evaluate("()=>({width:innerWidth,body:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).slice(0,30).map(e=>({tag:e.tagName,id:e.id,cls:e.className,right:e.getBoundingClientRect().right}))})")
+            (OUT/'lab-mobile-layout.json').write_text(json.dumps(layout,indent=2))
+            assert layout['body']<=layout['width'],layout
             checks.append('390px lab layout and controls work without body overflow')
             # Separate offline build: the computation worker itself is embedded, not fetched.
             off=await ctx.new_page();off.on('pageerror',lambda e:errors.append(str(e)));external=[]
