@@ -44,7 +44,7 @@ async def main():
             page=await browser.new_page(viewport={'width':1100,'height':850})
             page.on('pageerror',lambda e:report['pageErrors'].append(str(e)))
             await page.goto('file://'+str(ROOT/'assets/districts/review.html'));await page.wait_for_function('!!globalThis.assetReview')
-            names=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {HARMONY_FAMILIES} from './src/scene/harmony/kit.js';console.log(JSON.stringify(HARMONY_FAMILIES.flatMap(f=>[f+'-0-level-3',f+'-1-level-3']))));"],cwd=ROOT,text=True))
+            names=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {HARMONY_FAMILIES} from './src/scene/harmony/kit.js';console.log(JSON.stringify(HARMONY_FAMILIES.flatMap(f=>[f+'-0-level-3',f+'-1-level-3'])));"],cwd=ROOT,text=True))
             for name in names:
                 for angle,label in [(.60,'front'),(3.7,'rear')]:
                     r=await page.evaluate("arg=>{assetReview.select(arg.name,'high');assetReview.setLight('studio');assetReview.setView(arg.angle,.44);const r=assetReview.renderer;return {...r.stats,error:r.gl.getError()};}",{'name':name,'angle':angle})

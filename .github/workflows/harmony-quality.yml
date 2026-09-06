@@ -1,0 +1,59 @@
+name: City harmony native rendering
+on:
+  push:
+    branches: [feat/city-harmony-phase4]
+    paths: ['src/scene/**', 'scripts/assets/**', 'tests/harmony*', 'tests/shadow*', '.github/workflows/harmony-quality.yml']
+  pull_request:
+    paths: ['src/scene/**', 'scripts/assets/**', 'tests/harmony*', 'tests/shadow*', '.github/workflows/harmony-quality.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with: {fetch-depth: 0}
+      - uses: actions/setup-node@v6
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - run: npm run check && npm test && npm run build
+      - run: npm run assets:export && node scripts/assets/export-civic.mjs && node scripts/assets/export-harmony.mjs && npm run assets:review
+      - run: pip install playwright==1.57.0 && python -m playwright install --with-deps chromium
+      - name: Exact integrated pre-art baseline
+        run: |
+          mkdir -p test-results/harmony-baseline
+          git archive b75d7853457e12cac6e903da6cba4f62af3de0c0 | tar -x -C test-results/harmony-baseline
+      - run: python tests/harmony_browser.py
+      - name: Exact sources
+        if: always()
+        run: git archive --format=tar -o source.tar HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: harmony-native-evidence
+          path: |
+            source.tar
+            test-results/harmony/
+            assets/
+            dist/
+          retention-days: 14
+  resources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - run: pip install playwright==1.57.0 && python -m playwright install --with-deps chromium
+      - run: python tests/shadow_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shadow-context-evidence
+          path: test-results/shadow/
+          retention-days: 14
