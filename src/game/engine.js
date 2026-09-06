@@ -1,3 +1,4 @@
+import { validOpening, openingBonus, roundOrder } from './opening.js';
 import { createCasino, validateCasinoAction, applyCasino, assertCasino } from './casino.js';
 import { BOARD, EVENTS, RULES } from "./board.js";
 import { DEAL_TYPES, validateDealAction, applyDeal, pruneDeals, assertDeals } from "./deals.js";
@@ -33,12 +34,13 @@ function createGame(seats, seed = 1, options = {}) {
   const mobility = options.mobility ?? 0, finishOnBankruptcy = options.finishOnBankruptcy ?? false;
   demand(integer(mobility, 0, 3) && typeof finishOnBankruptcy === 'boolean', 'Règles de partie invalides.');
   const casino = options.casino ?? false; demand(typeof casino === 'boolean', 'Règle casino invalide.');
+  const opening = options.opening ?? 'classic'; demand(validOpening(opening), 'Ouverture invalide.');
   return {
-    casino: createCasino(seed, casino),
+    opening, casino: createCasino(seed, casino),
     version: RULES.version, id: String(options.id ?? `local-${seed}`).slice(0, 100), rng: seed >>> 0,
     revision: 0, turn: 0, round: 1, maxRounds: rounds, phase: 'roll',
     mobility, finishOnBankruptcy, turnSerial: 0, deals: [], nextDealId: 1, endReason: null,
-    players: seats.map(p => ({ id: p.id, name: cleanName(p.name), bot: Boolean(p.bot), cash: RULES.startCash, position: 0, bankrupt: false, mobilityTokens: mobility, dealBudgetTurn: -1, dealsSent: 0 })),
+    players: seats.map((p, seat) => ({ id: p.id, name: cleanName(p.name), bot: Boolean(p.bot), cash: RULES.startCash + openingBonus(opening, seat), position: 0, bankrupt: false, mobilityTokens: mobility, dealBudgetTurn: -1, dealsSent: 0 })),
     properties: BOARD.map(() => ({ owner: null, level: 0, mortgaged: false })),
     dice: [1, 1], event: null, pending: null, auction: null, log: [{ text: 'Aurora vous ouvre ses portes. À vous de bâtir la suite.', kind: 'info' }], winners: [],
   };
@@ -68,10 +70,14 @@ function endGame(s) {
 function nextTurn(s) {
   if (s.players.filter(p => !p.bankrupt).length < 2) { s.endReason = 'last-solvent'; return endGame(s); }
   s.turnSerial++;
-  let idx = s.turn;
-  do { idx = (idx + 1) % s.players.length; if (idx === 0) s.round++; } while (s.players[idx].bankrupt);
+  const order = roundOrder(s), remaining = order.slice(order.indexOf(s.turn) + 1);
+  let idx = remaining.find(i => !s.players[i].bankrupt);
+  if (idx === undefined) {
+    if (s.round === s.maxRounds) return endGame(s);
+    s.round++;
+    idx = roundOrder(s).find(i => !s.players[i].bankrupt);
+  }
   s.turn = idx; s.event = null; s.pending = null; s.auction = null;
-  if (s.round > s.maxRounds) { s.round = s.maxRounds; return endGame(s); }
   s.phase = 'roll';
 }
 /** Debt is automatically liquidated, highest level first; no negative cash or stalled turns. */
@@ -216,6 +222,7 @@ function applyAction(state, actorId, action) {
 /** Defensive boundary for saved games / peer snapshots. Casual snapshots are still untrusted. */
 function assertState(s) {
   demand(s && typeof s === 'object' && s.version === RULES.version, 'Version de partie incompatible.');
+  demand(validOpening(s.opening), 'Ouverture de partie incompatible.');
   demand(typeof s.id === 'string' && s.id.length <= 100, 'Identifiant invalide.');
   demand(integer(s.rng,1,0xffffffff) && integer(s.revision,0,100000), 'État invalide.');
   demand(Array.isArray(s.players) && s.players.length >= 2 && s.players.length <= 4, 'Joueurs invalides.');

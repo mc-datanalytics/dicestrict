@@ -5,5 +5,5 @@ const PRESETS = Object.freeze([
   Object.freeze({ id: 'grand', name: 'Grand District', rounds: 18, mobility: 2, finishOnBankruptcy: false, detail: '18 manches maximum · davantage de développement' }),
 ]);
 const presetById = id => PRESETS.find(p => p.id === id) ?? PRESETS[1];
-const matchOptions = id => { const p = presetById(id); return { rounds: p.rounds, mobility: p.mobility, finishOnBankruptcy: p.finishOnBankruptcy, casino: true }; };
+const matchOptions = id => { const p = presetById(id); return { opening:'classic', rounds: p.rounds, mobility: p.mobility, finishOnBankruptcy: p.finishOnBankruptcy, casino: true }; };
 export { PRESETS, presetById, matchOptions };

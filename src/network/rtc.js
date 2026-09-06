@@ -5,7 +5,7 @@ import { readPacket, packet, createLimiter } from "./protocol.js";
 /** Host-authoritative CASUAL rooms. WebRTC data channels carry play, never reward proofs. */
 class RoomSession {
   constructor({onLobby,onState,onError,onClosed}){
-    Object.assign(this,{onLobby,onState,onError,onClosed});this.peers=new Map();this.room=null;this.state=null;this.closed=false;this.paused=false;this.ready=new Set();this.rules={rounds:12,mobility:2,finishOnBankruptcy:false,casino:true};
+    Object.assign(this,{onLobby,onState,onError,onClosed});this.peers=new Map();this.room=null;this.state=null;this.closed=false;this.paused=false;this.ready=new Set();this.rules={opening:'classic',rounds:12,mobility:2,finishOnBankruptcy:false,casino:true};
   }
   async connect(kind,name,code=''){
     if(!globalThis.RTCPeerConnection)throw Error('Ce navigateur ne prend pas en charge WebRTC.');
@@ -102,7 +102,7 @@ class RoomSession {
         if(!this.state||msg.gameId!==this.state.id||msg.baseRevision!==this.state.revision){this.send(id,'resync');return;}
         const next=applyAction(this.state,msg.actor,msg.action);
         if(fingerprint(next)!==msg.checksum){this.send(id,'resync');this.onError('Écart de synchronisation détecté. Resynchronisation…');return;}
-        this.state=next;this.onState(this.state);
+        this.state=next;this.onState(this.state,{actor:msg.actor,action:msg.action});
       }
       if(msg.type==='error')this.onError(String(msg.message??'Action refusée.').slice(0,180));
     }
@@ -125,7 +125,7 @@ class RoomSession {
     if(this.isHost)this.commit(this.localId,action);
     else this.send(this.room.hostId,'action',{requestId:crypto.randomUUID(),gameId:this.state.id,revision:this.state.revision,action});
   }
-  commit(actor,action){if(!this.isHost||this.paused||!this.state)throw Error('Hôte indisponible.');const baseRevision=this.state.revision;this.state=applyAction(this.state,actor,action);this.broadcast('commit',{gameId:this.state.id,actor,action,baseRevision,checksum:fingerprint(this.state)});this.onState(this.state);}
+  commit(actor,action){if(!this.isHost||this.paused||!this.state)throw Error('Hôte indisponible.');const baseRevision=this.state.revision;this.state=applyAction(this.state,actor,action);this.broadcast('commit',{gameId:this.state.id,actor,action,baseRevision,checksum:fingerprint(this.state)});this.onState(this.state,{actor,action});}
   rematch(rounds=this.rules.rounds){this.start(rounds);}
   emitLobby(){if(this.room)this.onLobby({...this.room,rules:this.rules,isHost:this.isHost,members:this.room.members.map(m=>({...m,ready:this.ready.has(m.id)}))});}
   armHeartbeat(){clearInterval(this.heartbeat);this.heartbeat=setInterval(()=>{if(this.closed)return;this.broadcast('ping');for(const p of this.peers.values())if(p.channel?.readyState==='open'&&Date.now()-p.lastSeen>25000)this.fail('Un joueur ne répond plus. La partie est suspendue.');},5000);}

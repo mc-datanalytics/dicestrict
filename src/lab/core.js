@@ -1,25 +1,33 @@
+import { botProposeDeal } from '../game/negotiator.js';
+import { validOpening } from '../game/opening.js';
 import { BOARD, RULES, GROUPS } from '../game/board.js';
 import { createGame, applyAction, currentPlayer, netWorth, ownsGroup, fingerprint, assertState } from '../game/engine.js';
-import { botAction, BOT_PROFILES } from '../game/bots.js';
+import { botAction, botDealDecision, BOT_PROFILES } from '../game/bots.js';
 import { casinoAvailability, CASINO_STAKES, CASINO_RESERVE } from '../game/casino.js';
 import { mean, quantile, seedAt, estimate } from './statistics.js';
-const LAB_VERSION=1, POLICY_VERSION=2, MAX_ACTIONS=4000;
+const LAB_VERSION=2, POLICY_VERSION=3, MAX_ACTIONS=4000;
 const DEFAULT_CONFIG=Object.freeze({baseSeed:20260906,samples:100,rotateSeats:true,lineup:['balanced','prudent','builder','collector'],
-  baseline:{rounds:12,mobility:2,finishOnBankruptcy:false,casino:false,casinoPolicy:'none'},
-  candidate:{rounds:12,mobility:2,finishOnBankruptcy:false,casino:true,casinoPolicy:'all-60'}});
+  baseline:{rounds:12,mobility:2,finishOnBankruptcy:false,casino:false,casinoPolicy:'none',opening:'classic',negotiation:'none'},
+  candidate:{rounds:12,mobility:2,finishOnBankruptcy:false,casino:true,casinoPolicy:'all-60',opening:'classic',negotiation:'none'}});
 const METRICS=Object.freeze({rolls:'Tours joués',actions:'Commandes',rounds:'Manches',bankruptcyRate:'Part des joueurs éliminés',
   anyBankruptcy:'Parties avec faillite',levels:'Niveaux construits en fin',owned:'Terrains détenus en fin',
-  topWealthShare:'Part du patrimoine du meneur',meanWealth:'Patrimoine moyen final',casinoNet:'Casino : résultat net total',casinoBets:'Mises au casino'});
+  topWealthShare:'Part du patrimoine du meneur',meanWealth:'Patrimoine moyen final',casinoNet:'Casino : résultat net total',casinoBets:'Mises au casino',dealsProposed:'Offres proposées',dealsAccepted:'Offres acceptées',dealsDeclined:'Offres refusées',tradedLots:'Terrains échangés'});
 const fail=(ok,msg)=>{if(!ok)throw Error(msg);};
 const integer=(n,min,max)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
 function exactKeys(obj,keys){return obj&&Object.getPrototypeOf(obj)===Object.prototype&&Object.keys(obj).length===keys.length&&keys.every(k=>Object.hasOwn(obj,k));}
 function validateConfig(input){
+  input = structuredClone(input);
+  // Legacy configuration files get explicit defaults, not legacy game snapshots.
+  for (const side of ['baseline','candidate']) if (input?.[side] && typeof input[side] === 'object') {
+    input[side].opening ??= 'classic'; input[side].negotiation ??= 'none';
+  }
   fail(exactKeys(input,['baseSeed','samples','rotateSeats','lineup','baseline','candidate']),'Configuration du lab invalide.');
   fail(integer(input.baseSeed,1,0xffffffff)&&integer(input.samples,1,2000),'Graine (1…2³²−1) ou nombre de graines (1…2000) invalide.');
   fail(typeof input.rotateSeats==='boolean'&&Array.isArray(input.lineup)&&input.lineup.length>=2&&input.lineup.length<=4&&input.lineup.every(p=>Object.hasOwn(BOT_PROFILES,p)),'Table de bots invalide.');
   for(const side of ['baseline','candidate']){
     const r=input[side];
-    fail(exactKeys(r,['rounds','mobility','finishOnBankruptcy','casino','casinoPolicy']),'Règles expérimentales inconnues.');
+    fail(exactKeys(r,['rounds','mobility','finishOnBankruptcy','casino','casinoPolicy','opening','negotiation']),'Règles expérimentales inconnues.');
+    fail(validOpening(r.opening) && ['none','reciprocal'].includes(r.negotiation), 'Ouverture ou négociation inconnue.');
     fail(integer(r.rounds,4,30)&&integer(r.mobility,0,3)&&typeof r.finishOnBankruptcy==='boolean'&&typeof r.casino==='boolean','Règles hors limites.');
     fail(['none','all-20','all-60','focal-60'].includes(r.casinoPolicy),'Politique casino invalide.');
     fail(r.casino||r.casinoPolicy==='none','Un casino désactivé exige la politique « aucune mise ».');
@@ -30,7 +38,7 @@ function seating(lineup,rotation){return lineup.map((_,seat)=>{const identity=(s
 function runGame(config,side,seedIndex,rotation,{capture=false,actionLimit=MAX_ACTIONS}={}){
   const rules=config[side],seed=seedAt(config.baseSeed,seedIndex),seats=seating(config.lineup,rotation);
   const initial=createGame(seats,seed,{...rules,id:`lab-${seed}-${rotation}`});
-  let s=initial,actions=0,rolls=0,firstDistrictRound=null,firstBankruptcyRound=null,maxLevels=0;
+  let s=initial,actions=0,rolls=0,firstDistrictRound=null,firstBankruptcyRound=null,maxLevels=0,dealsProposed=0,dealsAccepted=0,dealsDeclined=0,tradedLots=0;
   const visits=BOARD.map(()=>0),rents=BOARD.map(()=>0),invested=BOARD.map(()=>0),casinoNet=seats.map(()=>0),casinoBets=seats.map(()=>0),trace=[];
   const record={seedIndex,seed,rotation,side,seats:seats.map(p=>({id:p.id,profile:config.lineup[Number(p.id.slice(1))]}))};
   function perform(actor,action){
@@ -39,6 +47,9 @@ function runGame(config,side,seedIndex,rotation,{capture=false,actionLimit=MAX_A
     s=applyAction(before,actor,action);actions++;
     if(capture)trace.push({actor,action,checksum:fingerprint(s)});
     if(action.type==='ROLL')rolls++;
+    if(action.type==='OFFER_DEAL')dealsProposed++;
+    if(action.type==='DECLINE_DEAL')dealsDeclined++;
+    if(action.type==='ACCEPT_DEAL'){dealsAccepted++;const d=before.deals.find(d=>d.id===action.dealId);tradedLots+=d.giveTiles.length+d.takeTiles.length;}
     if(action.type==='CASINO_BET'){
       const seat=seats.findIndex(p=>p.id===actor),result=s.casino.results.find(r=>r.actor===actor);
       casinoNet[seat]+=result.returned-result.stake;casinoBets[seat]++;
@@ -70,6 +81,12 @@ function runGame(config,side,seedIndex,rotation,{capture=false,actionLimit=MAX_A
           if(!casinoAvailability(s,peer.id,stake))perform(peer.id,{type:'CASINO_BET',round:s.round,stake,color:'red'});
         }
       }
+      if(rules.negotiation==='reciprocal'){
+        const response=botDealDecision(s);
+        if(response){perform(response.actor,response.action);continue;}
+        const proposer=currentPlayer(s).id,offer=botProposeDeal(s,proposer);
+        if(offer){perform(proposer,offer);continue;}
+      }
       const actor=currentPlayer(s).id,profile=config.lineup[Number(actor.slice(1))],action=botAction(s,profile);
       fail(action,'Bot sans action légale.');perform(actor,action);
     }
@@ -78,7 +95,7 @@ function runGame(config,side,seedIndex,rotation,{capture=false,actionLimit=MAX_A
   const wealth=s.players.map(p=>netWorth(s,p.id)),total=wealth.reduce((a,b)=>a+b,0);
   const winShares=s.players.map(p=>s.winners.includes(p.id)?1/s.winners.length:0);
   return {...record,status:'completed',endReason:s.endReason,checksum:fingerprint(s),firstDistrictRound,firstBankruptcyRound,maxLevels,
-    metrics:{rolls,actions,rounds:s.round,bankruptcyRate:s.players.filter(p=>p.bankrupt).length/seats.length,anyBankruptcy:Number(s.players.some(p=>p.bankrupt)),
+    metrics:{dealsProposed,dealsAccepted,dealsDeclined,tradedLots,rolls,actions,rounds:s.round,bankruptcyRate:s.players.filter(p=>p.bankrupt).length/seats.length,anyBankruptcy:Number(s.players.some(p=>p.bankrupt)),
       levels:s.properties.reduce((n,p)=>n+p.level,0),owned:s.properties.filter(p=>p.owner).length,topWealthShare:total?Math.max(...wealth)/total:0,
       meanWealth:mean(wealth),casinoNet:casinoNet.reduce((a,b)=>a+b,0),casinoBets:casinoBets.reduce((a,b)=>a+b,0)},
     winShares,wealth,casinoNet,casinoBets,visits,rents,invested,
@@ -115,7 +132,7 @@ function summarize(config,pairs){
   const failures=pairs.flatMap(p=>[p.a,p.b]).filter(r=>r.status==='failed');
   const warnings=[
     'Simulations de bots : ni durée humaine en minutes, ni rétention, ni sécurité anti-triche.',
-    'Les bots ne proposent pas de négociations. Les économies issues de négociations humaines ne sont pas modélisées.',
+    'Négociation selon la configuration : aucune ou échanges réciproques de paires. Cette politique bornée ne modélise pas des négociations humaines.',
     'Les intervalles sont des bootstraps approximatifs à 95 % par graine ; les rotations corrélées ne sont pas comptées comme indépendantes.',
     'Les tirages A/B commencent avec la même graine ; des trajectoires divergentes peuvent ensuite consommer le hasard différemment.',
   ];

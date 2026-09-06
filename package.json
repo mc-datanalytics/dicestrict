@@ -1,6 +1,6 @@
 {
   "name": "dicestrict",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "An original local-first 3D property strategy game.",
   "type": "module",
@@ -14,7 +14,9 @@
     "test": "node --test tests/*.test.mjs",
     "check": "node scripts/check.mjs",
     "build:lab": "node scripts/build.mjs --lab",
-    "balance": "node scripts/balance.mjs"
+    "balance": "node scripts/balance.mjs",
+    "balance:opening": "node scripts/fair-opening.mjs",
+    "playtest:verify": "node scripts/verify-playtest.mjs"
   },
   "license": "UNLICENSED"
 }
