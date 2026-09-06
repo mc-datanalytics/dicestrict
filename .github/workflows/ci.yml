@@ -21,7 +21,9 @@ jobs:
       - run: npm run check && npm test && npm run build
       - run: pip install playwright==1.57.0
       - run: python -m playwright install --with-deps chromium
+      - run: npm run assets:export && npm run assets:review
       - run: python tests/browser.py
+      - run: python tests/districts_browser.py
       - run: npm run build:lab
       - run: python tests/lab_browser.py
       - run: python tests/playtest_browser.py
@@ -36,4 +38,5 @@ jobs:
             dist/
             test-results/
             source.tar
+            assets/
           retention-days: 14

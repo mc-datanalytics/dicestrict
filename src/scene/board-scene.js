@@ -82,6 +82,8 @@ class BoardScene {
     this.city.setState(s);this.state=s;this.updateOwnership();this.dirty=true;
   }
   updateOwnership(){
+    const signature=JSON.stringify([this.selected,this.state?.players.map(p=>p.id),this.state?.properties.map(p=>[p.owner,p.level,p.mortgaged])]);
+    if(signature===this.ownerSignature)return;this.ownerSignature=signature;
     const g=new Geometry();
     if(this.state)for(const t of BOARD){const p=this.state.properties[t.id],position=tilePosition(t.id),x=position[0],z=position[1];
       if(p.owner){const idx=this.state.players.findIndex(q=>q.id===p.owner);g.box([x,.535,z+.59],[1.18,.035,.12],p.mortgaged?'#a7aaa0':COLORS[idx],.022);
@@ -107,13 +109,16 @@ class BoardScene {
     this.lastAmbientFrame=t;
     const cycle=this.ambientTime/240*Math.PI*2;
     this.renderer.night=this.dayMode==='night'?1:this.dayMode==='day'||this.reduced?0:Math.max(0,-Math.cos(cycle));
+    this.renderer.dusk=this.dayMode==='auto'&&!this.reduced?Math.max(0,1-Math.abs(Math.cos(cycle))/.35):0;
     this.renderer.weather=this.weather&&ambient?Math.max(0,Math.sin(this.ambientTime/39)-.82)*4:0;
     this.renderer.ambientTime=this.ambientTime;
     const rect=this.canvas.getBoundingClientRect(),aspect=rect.width/Math.max(rect.height,1);
     this.renderer.resize(rect.width,rect.height,Math.min(devicePixelRatio||1,this.renderer.shadows?1.7:1.0));
     const extent=(aspect<1.15?10.1/aspect:9.0)/this.zoom;
-    const eye=[Math.sin(this.angle)*24*Math.cos(this.pitch),Math.sin(this.pitch)*24,Math.cos(this.angle)*24*Math.cos(this.pitch)];
-    this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,[0,.3,0]));
+    const target=this.captureTarget??[0,.3,0];
+    const eye=[target[0]+Math.sin(this.angle)*24*Math.cos(this.pitch),target[1]-.3+Math.sin(this.pitch)*24,target[2]+Math.cos(this.angle)*24*Math.cos(this.pitch)];
+    this.renderer.camera=eye;this.city.marina.selectDetail(rect.height/(2*extent));this.city.districts.selectDetail(rect.height/(2*extent));this.city.civic.selectDetail(rect.height/(2*extent));
+    this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,target));
     const objects=[{mesh:this.staticMesh,model:identity()},...this.city.objects(this.ambientTime,this.renderer.weather)];if(this.ownerMesh)objects.push({mesh:this.ownerMesh});
     if(this.state)for(let i=0;i<this.state.players.length;i++){
       const p=this.state.players[i];if(p.bankrupt)continue;const path=this.paths[i],progress=motionProgress(path,t,this.reduced),total=progress*path.steps,step=Math.floor(total),fraction=total-step;

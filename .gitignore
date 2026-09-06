@@ -10,3 +10,8 @@ __pycache__/
 .DS_Store
 
 lab-results/
+
+# Reproducible optional binary exports, archived by CI and delivery ZIP.
+assets/marina/
+assets/districts/
+assets/civic/
