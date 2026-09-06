@@ -46,12 +46,23 @@ function yacht(lod='high') {
   const cabin=[[-.43,.179,.184,.39],[-.30,.181,.19,.444],[.08,.158,.197,.445],[.34,.113,.216,.324]];
   const rings=cabin.map(([z,w,b,t])=>[[w*.9,t,z],[-w*.9,t,z],[-w,b,z],[w,b,z]]);
   g.loft(rings,P.white,M.paint);
+  // Follow the actual tapered cabin skin. The earlier flat panels intersected
+  // the white cabin and hid most of the glazing in the neutral-light review.
+  const section=z=>{let i=1;while(i<cabin.length-1&&z>cabin[i][0])i++;
+    const a=cabin[i-1],b=cabin[i],t=(z-a[0])/(b[0]-a[0]);return a.map((v,k)=>v+(b[k]-v)*t);};
+  const sidePoint=(z,fraction,sign)=>{const [,w,b,t]=section(z);return [sign*(w*(1-.1*fraction)+.003),b+(t-b)*fraction,z];};
+  const breaks=[-.405,-.30,.08,.304];
   for(const sign of [-1,1]) {
-    g.polygon([[sign*.177,.26,-.408],[sign*.167,.410,-.298],[sign*.147,.411,.071],[sign*.117,.279,.308]],P.glass,M.glass,[sign,0,0]);
-    if(high)for(const z of [-.21,-.035])g.rod([sign*.175,.261,z],[sign*.153,.420,z],.007,P.ivory,M.paint,5);
+    for(let i=1;i<breaks.length;i++)g.polygon([
+      sidePoint(breaks[i-1],.39,sign),sidePoint(breaks[i],.39,sign),
+      sidePoint(breaks[i],.88,sign),sidePoint(breaks[i-1],.88,sign)
+    ],P.glass,M.glass,[sign,.1,0]);
+    if(high)for(const z of [-.21,-.035])g.rod(sidePoint(z,.39,sign),sidePoint(z,.89,sign),.006,P.ivory,M.paint,5);
   }
-  g.polygon([[-.113,.265,.345],[.113,.265,.345],[.146,.415,.119],[-.146,.415,.119]],P.glass,M.glass,[0,.5,1]);
-  line(g,[[0,.266,.348],[0,.416,.12]],.005,P.ivory,M.paint,5);
+  const wind=(z,sign)=>{const [,w,,top]=section(z);return [sign*w*.9*.88,top+.004,z];};
+  g.polygon([wind(.119,-1),wind(.119,1),wind(.308,1),wind(.308,-1)],P.glass,M.glass,[0,1,.465]);
+  const windA=wind(.119,0),windB=wind(.308,0);windA[1]+=.003;windB[1]+=.003;
+  line(g,[windA,windB],.004,P.ivory,M.paint,5);
   g.polygon([[-.153,.226,-.436],[.153,.226,-.436],[.148,.366,-.436],[-.148,.366,-.436]],P.glass,M.glass,[0,0,-1]);
   // Flybridge, cushions and actual suspended hardtop.
   g.box([0,.451,-.135],[.397,.040,.576],P.white,M.paint,.013);
