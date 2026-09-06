@@ -26,11 +26,10 @@ jobs:
         run: |
           python - <<'PY'
           import json, pathlib, hashlib
-          root=pathlib.Path('.')
           sha=lambda s:hashlib.sha256(s.encode()).hexdigest()
           allowed={'README.md','CHANGELOG.md','SECURITY.md','package.json'}
-          for filename in ['.github/living-delta-a.json','.github/living-delta-b.json']:
-              for name,patch in json.loads(pathlib.Path(filename).read_text()).items():
+          for filename in sorted(pathlib.Path('.github').glob('living-delta-*.json')):
+              for name,patch in json.loads(filename.read_text()).items():
                   p=pathlib.Path(name)
                   assert '..' not in p.parts and not p.is_absolute()
                   assert name in allowed or p.parts[0] in {'src','scripts','tests','docs'}
@@ -54,8 +53,9 @@ jobs:
           PY
       - name: Check, test and build
         run: |
-          set -o pipefail
-          npm run check && npm test | tee node-tests.txt
+          set -euo pipefail
+          npm run check
+          npm test | tee node-tests.txt
           npm run build
       - run: pip install playwright==1.57.0
       - run: python -m playwright install --with-deps chromium
@@ -63,7 +63,7 @@ jobs:
         run: python tests/browser.py
       - name: Publish verified sources on the feature branch only
         run: |
-          git rm .github/living-delta-a.json .github/living-delta-b.json .github/workflows/living-city-delivery.yml
+          git rm .github/living-delta-*.json .github/workflows/living-city-delivery.yml
           git add src scripts tests docs README.md CHANGELOG.md SECURITY.md package.json
           git -c user.name='M&G Group' -c user.email='119437439+mc-datanalytics@users.noreply.github.com' commit -m 'feat: living city and optional match-credit casino, validated in Chromium'
           git push origin HEAD:refs/heads/feat/living-city-0-4
