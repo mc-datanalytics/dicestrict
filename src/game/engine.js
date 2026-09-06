@@ -1,3 +1,4 @@
+import { createCasino, validateCasinoAction, applyCasino, assertCasino } from './casino.js';
 import { BOARD, EVENTS, RULES } from "./board.js";
 import { DEAL_TYPES, validateDealAction, applyDeal, pruneDeals, assertDeals } from "./deals.js";
 
@@ -31,7 +32,9 @@ function createGame(seats, seed = 1, options = {}) {
   demand(integer(rounds, 4, 30), 'Durée invalide.');
   const mobility = options.mobility ?? 0, finishOnBankruptcy = options.finishOnBankruptcy ?? false;
   demand(integer(mobility, 0, 3) && typeof finishOnBankruptcy === 'boolean', 'Règles de partie invalides.');
+  const casino = options.casino ?? false; demand(typeof casino === 'boolean', 'Règle casino invalide.');
   return {
+    casino: createCasino(seed, casino),
     version: RULES.version, id: String(options.id ?? `local-${seed}`).slice(0, 100), rng: seed >>> 0,
     revision: 0, turn: 0, round: 1, maxRounds: rounds, phase: 'roll',
     mobility, finishOnBankruptcy, turnSerial: 0, deals: [], nextDealId: 1, endReason: null,
@@ -129,6 +132,7 @@ function resolveLanding(s, p, offset) {
 function validateAction(a) {
   demand(a && typeof a === 'object' && !Array.isArray(a), 'Action invalide.');
   if (DEAL_TYPES.includes(a.type)) return validateDealAction(a);
+  if (a.type === 'CASINO_BET') return validateCasinoAction(a);
   if (a.type === 'MOVE') { demand(Object.keys(a).every(k => ['type', 'offset'].includes(k)) && integer(a.offset, -1, 1), 'Déplacement invalide.'); return a; }
   demand(['ROLL','BUY','SKIP','END','UPGRADE','SELL_LEVEL','MORTGAGE','REDEEM','BID','PASS'].includes(a.type), 'Action inconnue.');
   demand(Object.keys(a).every(k => ['type', 'tile'].includes(k)), 'Champs non autorisés.');
@@ -140,9 +144,11 @@ function validateAction(a) {
 function applyAction(state, actorId, action) {
   validateAction(action);
   demand(state.phase !== 'finished', 'La partie est terminée.');
-  demand(DEAL_TYPES.includes(action.type) || currentPlayer(state).id === actorId, 'Ce n’est pas votre tour.');
+  demand(action.type === 'CASINO_BET' || DEAL_TYPES.includes(action.type) || currentPlayer(state).id === actorId, 'Ce n’est pas votre tour.');
   const s = structuredClone(state), p = currentPlayer(s), a = action;
-  if (DEAL_TYPES.includes(a.type)) {
+  if (a.type === 'CASINO_BET') {
+    applyCasino(s, actorId, a);
+  } else if (DEAL_TYPES.includes(a.type)) {
     applyDeal(s, actorId, a);
   } else if (a.type === 'BID' || a.type === 'PASS') {
     demand(s.phase === 'auction' && s.auction, 'Aucune enchère en cours.');
@@ -254,6 +260,7 @@ function assertState(s) {
   demand(s.phase === 'finished' ? s.endReason !== null : s.endReason === null, 'Motif de fin hors phase.');
   if (s.phase === 'choose') demand(s.pending === null && currentPlayer(s).mobilityTokens > 0, 'Choix de déplacement invalide.');
   assertDeals(s);
+  assertCasino(s);
   return s;
 }
 /** FNV-1a is ONLY an accidental-desync checksum; it is not an anti-cheat signature. */

@@ -1,3 +1,4 @@
+import { LivingCity } from './living-city.js';
 import { BOARD, COLORS, tilePosition } from "../game/board.js";
 import { Geometry } from "./geometry.js";
 import { Renderer } from "./webgl.js";
@@ -18,71 +19,15 @@ function atlas(){
   c.save();c.translate(4*256,3*256);c.fillStyle='#b8d3c4';c.fillRect(0,0,256,256);c.fillStyle='#507c67';c.textAlign='center';c.font='700 43px Arial';c.fillText('AURORA',128,130);c.font='14px Arial';c.fillText('THE CITY IS YOURS',128,163);c.restore();return canvas;
 }
 function uv(id){const x=id%8*256,y=Math.floor(id/8)*256;return [(x+2)/2048,1-(y+254)/1024,(x+254)/2048,1-(y+2)/1024];}
-function tree(g,x,z,scale=1,tint='#79a984'){
-  g.cylinder([x,.56,z],.055*scale,.42*scale,'#b39972',7);
-  g.sphere([x,.9*scale,z],.30*scale,tint,9,5,[.85,1.2,.85]);
-  g.sphere([x-.13*scale,.84*scale,z+.08*scale],.21*scale,tint,8,5);
-}
-function building(g,x,z,w,d,h,color,roof='#f5edda'){
-  const bottom=.44;
-  g.box([x,bottom+h/2,z],[w,h,d],color,.075);
-  g.box([x,bottom+h+.04,z],[w+.07,.10,d+.07],roof,.035);
-  // Windows are merged into the static mesh, not separate draw calls.
-  const cols=Math.max(1,Math.floor(w/.30)),floors=Math.max(1,Math.floor(h/.34));
-  for(let i=0;i<cols;i++)for(let j=0;j<floors;j++){
-    const wx=x-w/2+(i+.5)*w/cols,wy=bottom+.18+j*.32;
-    if(wy<bottom+h-.08){g.box([wx,wy,z+d/2+.006],[.11,.16,.016],'#ecf0d9',.002);g.box([wx,wy,z-d/2-.006],[.11,.16,.016],'#ecf0d9',.002);}
-  }
-  for(let i=0;i<Math.max(1,Math.floor(d/.35));i++)for(let j=0;j<floors;j++){
-    const wz=z-d/2+(i+.5)*d/Math.max(1,Math.floor(d/.35)),wy=bottom+.18+j*.32;
-    if(wy<bottom+h-.08)g.box([x+w/2+.007,wy,wz],[.016,.16,.11],'#d5e7db',.002);
-  }
-}
 function cityGeometry(){
   const g=new Geometry();
-  g.box([0,-.67,0],[150,.08,150],'#f4f2e9',0);
-  g.box([0,-.14,0],[13.5,.78,13.5],'#9bb6a7',.25);
-  g.box([0,.05,0],[13.38,.42,13.38],'#ffffff',.19);
-  g.box([0,.27,0],[13.16,.16,13.16],'#dce5d8',.12);
-  g.box([0,.35,0],[9.52,.20,9.52],'#abc9b6',.17);
-  // Pedestrian boulevards and a branching canal.
-  g.box([0,.46,-1.2],[8.7,.04,.76],'#d6d9c7',.08);
-  g.box([.5,.462,-1.7],[.74,.045,5.6],'#d6d9c7',.06);
-  g.box([-2.4,.465,1.38],[3.7,.035,.47],'#d6d9c7',.04);
-  g.box([-1.5,.464,2.6],[.45,.035,2.4],'#d6d9c7',.04);
-  g.box([2.8,.49,1.5],[2.7,.10,2.8],'#f0ecda',.2);
-  g.box([2.8,.55,1.5],[2.45,.05,2.52],'#8dc7c7',.20);
-  g.box([2.75,.58,1.48],[1.2,.018,.018],'#e2f3e4',.001);
-  g.box([3.1,.58,1.1],[.65,.018,.018],'#e2f3e4',.001);
-  g.box([3.05,.58,2.0],[.85,.018,.018],'#e2f3e4',.001);
-  // Architectural collection: warm terracotta, creamy stone, sea-glass and lavender.
-  building(g,-3.25,-3.20,.9,1.0,.78,'#deb385');
-  building(g,-1.9,-3.25,1.05,1.1,1.55,'#c3c5df');
-  building(g,-.45,-3.55,.72,.75,2.20,'#7ba79c');
-  g.box([-.45,2.82,-3.55],[.52,.19,.55],'#f6e2ac',.05);
-  g.cylinder([-.45,3.11,-3.55],.024,.42,'#dab56f',8);
-  building(g,1.65,-3.25,1.05,1.3,1.2,'#e1ad92');
-  building(g,3.1,-3.1,.82,.92,1.85,'#a5bcd0');
-  building(g,3.3,-1.9,.9,.64,.70,'#f0d3a5');
-  building(g,-3.10,-.04,.93,1.03,1.05,'#e3b88e');
-  building(g,-1.65,-.02,1.0,1.03,1.65,'#79a899');
-  building(g,-.23,.17,.62,.73,.82,'#bac6d5');
-  // Town hall: broad steps, colonnade, copper roof.
-  g.box([-3.35, .54, 2.73],[1.60,.18,1.32],'#e4dec2',.055);
-  g.box([-3.35, .64, 2.63],[1.39,.16,1.16],'#eee7d4',.045);
-  building(g,-3.35,2.53,1.2,.89,.92,'#f1dfb9','#82a696');
-  for(let x=0;x<4;x++)g.cylinder([-3.82+x*.31,1.03,3.0],.06,.62,'#ffefca',8);
-  g.box([-3.35,1.53,2.53],[1.34,.28,1.04],'#88ac9a',.06);
-  // Parks and sculpted trees.
-  for(const [x,z,s] of [[-4.12,-3.25,.85],[-2.65,-2.05,.75],[-1.25,-2.25,.74],[1.00,-4.05,.8],[2.45,-2.05,.9],[4.04,-3.04,1.0],[-4.15,-.55,.82],[-4.1,.65,.84],[-2.75,1.1,.8],[-2.13,2.15,1.0],[-1.75,3.55,.9],[-.2,2.0,.82],[1.16,.2,.82],[4.0,.10,.8],[3.6,3.3,.85],[2.65,3.15,.72]])tree(g,x,z,s);
-  // Planters, benches and tiny boulevard lamps.
-  for(const [x,z] of [[-1.2,-1.85],[2.0,-.66],[-2.5,3.3],[1.0,3.65]]){
-    g.box([x,.55,z],[.56,.10,.19],'#9b7955',.02);g.box([x-.16,.49,z],[.045,.15,.10],'#5c7e70',.01);g.box([x+.16,.49,z],[.045,.15,.10],'#5c7e70',.01);
-  }
-  for(const x of [-3.8,-.7,2.6]){g.cylinder([x,.88,-.66],.025,.86,'#7c9684',8);g.sphere([x,1.31,-.66],.075,'#f6e7ad',8,5);}
-  // Dice plaza and city stamp.
-  g.box([.3,.48,3.40],[2.68,.15,1.53],'#d1dec8',.16);
-  g.quad([.65,.455,1.55],2.30,1.20,uv(28));
+  g.block([0,-.67,0],[150,.08,150],'#f4f2e9');
+  g.box([0,-.14,0],[15.3,.78,15.3],'#9bb6a7',.25);
+  g.box([0,.13,0],[15.18,.32,15.18],'#e3e8d8',.18);
+  g.box([0,.32,0],[14.98,.08,14.98],'#c8d9c4',.12);
+  g.box([0,.37,0],[9.54,.10,9.54],'#a5c3ac',.12);
+  g.quad([.4,.525,2.6],2.20,.85,uv(28));
+  g.box([.1,.47,3.38],[2.45,.08,.95],'#d0ddc5',.1);
   for(const t of BOARD){const [x,z]=tilePosition(t.id);g.box([x,.40,z],[1.49,.21,1.49],'#fffff6',.09);g.quad([x,.509,z],1.37,1.37,uv(t.id));}
   return g;
 }
@@ -98,6 +43,7 @@ class BoardScene {
   constructor(canvas,onSelect,onError){
     this.canvas=canvas;this.onSelect=onSelect;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.renderer=new Renderer(canvas,atlas());this.staticMesh=this.renderer.mesh(cityGeometry());this.tokens=COLORS.map(c=>this.renderer.mesh(token(c)));this.diceMesh=this.renderer.mesh(dice());
+    this.city=new LivingCity(this.renderer);this.ambientTime=0;this.lastAmbientFrame=null;this.living=true;this.dayMode='auto';this.weather=true;
     this.angle=.50;this.pitch=.85;this.zoom=1;this.time=0;this.selected=1;this.paths=[];this.lastRoll=-99999;this.state=null;this.dirty=true;
     this.abort=new AbortController();const opts={signal:this.abort.signal};
     canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.lost=true;cancelAnimationFrame(this.raf);onError('Le contexte graphique a été interrompu. Rechargez la page pour reprendre votre partie locale.');},opts);
@@ -111,17 +57,24 @@ class BoardScene {
     this.resizeObserver=new ResizeObserver(()=>{this.dirty=true;});this.resizeObserver.observe(canvas);
     const loop=t=>{if(this.lost)return;this.render(t);this.raf=requestAnimationFrame(loop);};this.raf=requestAnimationFrame(loop);
   }
-  configure({quality,reduced}={}){if(quality)this.renderer.shadows=quality!=='low';if(reduced!==undefined)this.reduced=reduced;this.dirty=true;}
+  configure(settings={}){
+    const {quality,reduced,living,dayMode,weather}=settings;
+    if(quality)this.renderer.shadows=quality!=='low';if(reduced!==undefined)this.reduced=reduced;
+    if(living!==undefined)this.living=living;if(dayMode)this.dayMode=dayMode;if(weather!==undefined)this.weather=weather;
+    this.city.configure(settings);this.dirty=true;
+  }
   view(mode){if(mode==='top'){this.pitch=1.42;this.angle=0;this.zoom=1.1;}else if(mode==='reset'){this.pitch=.85;this.angle=.50;this.zoom=1;}else this.zoom=clamp(this.zoom*(mode==='in'?1.12:.89),.72,1.5);this.dirty=true;}
   setSelected(id){this.selected=id;this.updateOwnership();this.dirty=true;}
   setState(s){
     const now=performance.now();
+    const sameMatch=this.state?.id===s.id;
     if(this.state&&s.revision!==this.state.revision&&s.dice&&(s.players.some((p,i)=>p.position!==this.state.players[i]?.position))){this.lastRoll=now;}
     this.paths=s.players.map((p,i)=>{
-      const old=this.state?.players[i]?.position??p.position,steps=(p.position-old+28)%28;
+      if(sameMatch && p.position===this.state.players[i]?.position && this.paths[i])return this.paths[i];
+      const old=sameMatch?(this.state?.players[i]?.position??p.position):p.position,steps=(p.position-old+28)%28;
       return {from:old,to:p.position,steps,start:now,duration:this.reduced?0:Math.max(600,steps*95)};
     });
-    this.state=s;this.updateOwnership();this.dirty=true;
+    this.city.setState(s);this.state=s;this.updateOwnership();this.dirty=true;
   }
   updateOwnership(){
     const g=new Geometry();
@@ -138,18 +91,25 @@ class BoardScene {
     if(tile)this.onSelect(tile.id);
   }
   render(t){
-    if(document.hidden)return;
+    if(document.hidden){this.lastAmbientFrame=null;return;}
     // Do not submit GPU work for an idle board; only redraw for animation or invalidation.
-    const moving=!this.reduced&&(t-this.lastRoll<900||this.paths.some(p=>p.steps>0&&t-p.start<p.duration));
-    if(!this.dirty&&!moving)return;
-    // Animation cap: 45 FPS (30 with reduced motion).
-    if(t-this.time<(this.reduced?1000/30:1000/45)&&!this.dirty)return;this.time=t;this.dirty=false;
+    const ambient=this.living&&!this.reduced;
+    const moving=ambient||!this.reduced&&(t-this.lastRoll<900||this.paths.some(p=>p.steps>0&&t-p.start<p.duration));
+    if(!this.dirty&&!moving){this.lastAmbientFrame=null;return;}
+    // Active animation cap: 30 FPS; dirty frames render immediately.
+    if(t-this.time<(this.reduced?1000/30:1000/30)&&!this.dirty)return;this.time=t;this.dirty=false;
+    if(ambient&&this.lastAmbientFrame!==null)this.ambientTime+=Math.min(.10,Math.max(0,(t-this.lastAmbientFrame)/1000));
+    this.lastAmbientFrame=t;
+    const cycle=this.ambientTime/240*Math.PI*2;
+    this.renderer.night=this.dayMode==='night'?1:this.dayMode==='day'||this.reduced?0:Math.max(0,-Math.cos(cycle));
+    this.renderer.weather=this.weather&&ambient?Math.max(0,Math.sin(this.ambientTime/39)-.82)*4:0;
+    this.renderer.ambientTime=this.ambientTime;
     const rect=this.canvas.getBoundingClientRect(),aspect=rect.width/Math.max(rect.height,1);
     this.renderer.resize(rect.width,rect.height,Math.min(devicePixelRatio||1,this.renderer.shadows?1.7:1.0));
-    const extent=(aspect<1.15?9.3/aspect:8.1)/this.zoom;
+    const extent=(aspect<1.15?10.1/aspect:9.0)/this.zoom;
     const eye=[Math.sin(this.angle)*24*Math.cos(this.pitch),Math.sin(this.pitch)*24,Math.cos(this.angle)*24*Math.cos(this.pitch)];
     this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,[0,.3,0]));
-    const objects=[{mesh:this.staticMesh,model:identity()}];if(this.ownerMesh)objects.push({mesh:this.ownerMesh});
+    const objects=[{mesh:this.staticMesh,model:identity()},...this.city.objects(this.ambientTime,this.renderer.weather)];if(this.ownerMesh)objects.push({mesh:this.ownerMesh});
     if(this.state)for(let i=0;i<this.state.players.length;i++){
       const p=this.state.players[i];if(p.bankrupt)continue;const path=this.paths[i],progress=path.duration?clamp((t-path.start)/path.duration,0,1):1,total=progress*path.steps,step=Math.floor(total),fraction=total-step;
       const from=tilePosition((path.from+step)%28),to=tilePosition((path.from+step+1)%28),x=lerp(from[0],to[0],smooth(fraction)),z=lerp(from[1],to[1],smooth(fraction));
@@ -160,7 +120,7 @@ class BoardScene {
     for(let i=0;i<2;i++){const value=this.state?.dice[i]??(i?5:3),rot=DICE_ROT[value];const spin=rolling?(1-elapsed/900)*Math.PI*6:0;
       objects.push({mesh:this.diceMesh,model:model(-.32+i*.94,.91+(rolling?Math.abs(Math.sin(elapsed/85+i))*.65:0),3.35,rot[0]+spin,rot[1]+spin*.72,rot[2]+spin*.61)});
     }
-    this.renderer.render(this.vp,objects);
+    this.renderer.render(this.vp,objects);this.frameCount=(this.frameCount??0)+1;
   }
   destroy(){cancelAnimationFrame(this.raf);this.abort.abort();this.resizeObserver.disconnect();this.renderer.destroy();}
 }

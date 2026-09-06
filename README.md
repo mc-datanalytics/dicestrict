@@ -2,7 +2,7 @@
 
 **Roll. Build. Rule.** Une ville miniature, quatre ambitions, un lancer à la fois.
 
-Jeu de stratégie immobilière original en 3D pour navigateur, préparé pour une future distribution sur CrazyGames. Ville : **Aurora**. Interface française, direction crème / vert profond / quartiers pastel. Alpha **0.3.0**, pas une sortie commerciale.
+Jeu de stratégie immobilière original en 3D pour navigateur, préparé pour une future distribution sur CrazyGames. Ville : **Aurora**. Interface française, direction crème / vert profond / quartiers pastel. Alpha **0.4.0**, pas une sortie commerciale.
 
 ## Jouer et développer
 
@@ -35,6 +35,14 @@ npm run preview
 - Salons WebRTC amicals, code d'invitation, synchronisation par commandes, resynchronisation, suspension en cas de déconnexion et revanche dans le même salon.
 - Adaptateur CrazyGames v3 : SDK optionnel, informations de salon, invitations, entrée directe en multijoueur, noms de compte et priorité au réglage audio de la plateforme.
 
+## Nouveautés 0.4 — la ville reflète la partie
+
+Les seize parcelles du centre reprennent réellement achats, constructions, couleurs de propriétaire et hypothèques. Commerces, terrasses et tours remplacent progressivement les parcelles libres ; le trafic et les passants sont plus présents dans les quartiers développés. Grues temporaires, célébration de quartier, bus, fontaine, métro de surface, ambulance ponctuelle, enseignes fictives, pluie légère et cycle jour/nuit donnent vie à la scène. Les réglages permettent une ville figée, une météo désactivée ou une nuit fixe. Aucun de ces objets visuels n'est synchronisé sur le réseau.
+
+Le **casino facultatif** propose une roulette rouge/noir, exclusivement avec les crédits de la partie : pas d'achat, conversion, retrait ou récompense de compte. Une mise de 20/40/60 maximum par manche, hors tour, avec confirmation et réserve de 200 crédits. Gains et pertes modifient le capital du plateau. Le panneau ne suspend pas la table et laisse la priorité à votre tour. L'hôte peut désactiver le casino avant le lancement. Ce n'est pas une assurance anti-triche : l'aléatoire P2P est public et prédictible.
+
+Voir [la spécification et les limites de la ville vivante](docs/LIVING_CITY.md). Le protocole et les sauvegardes passent en **v4**, sans import des sauvegardes v3 (non supprimées). Les preuves de validation sont séparées par version dans `docs/VALIDATION.md`.
+
 ## Ce que les retours joueurs ont changé en 0.3
 
 Voir l'[analyse critique des avis et les exigences de livraison](docs/research/PLAYER_FEEDBACK.md). Elle distingue les observations, les vérifications externes et les idées à éprouver : ce n'est pas une collecte exhaustive d'avis.
@@ -46,11 +54,11 @@ Voir l'[analyse critique des avis et les exigences de livraison](docs/research/P
 
 Les offres n'immobilisent pas les fonds et expirent après un cycle de table compté en fins de tour. Une offre ouverte par joueur, trois propositions par tour actif. Les quartiers construits et terrains hypothéqués ne sont pas échangeables. Chaque partie doit fournir quelque chose. Les IA répondent par une heuristique simple ; aucune promesse d'équité économique ou de résistance à la collusion.
 
-Le moteur et le protocole passent en **version 3**. Les sauvegardes v2 ne sont pas migrées : elles restent sous leur ancienne clé locale, et la version 0.3 utilise une nouvelle clé. Les clients v2/v3 ne peuvent pas participer à la même session.
+En 0.3, le moteur et le protocole sont passés en **version 3** (historique). Les sauvegardes v2 ne sont pas migrées : elles restent sous leur ancienne clé locale, et la version 0.3 utilise une nouvelle clé. Les clients v2/v3 ne peuvent pas participer à la même session.
 
 ## Validation
 
-La suite Node contient **52 tests**. Elle simule 500 parties de référence (44 337 actions) et 300 parties avec mobilité et offres (40 889 actions, dont 3 207 propositions), puis vérifie leurs replays identiques. Ces 800 parties synthétiques valident des invariants, pas le plaisir ou la durée de parties humaines. Elle vérifie également les frontières du protocole et le serveur de signalisation sur de vraies connexions WebSocket locales.
+La suite Node 0.4 contient **64 tests**. Les nouveaux tests couvrent le casino, ses limites, son réseau, la projection économique, les budgets visuels et 100 trajectoires supplémentaires avec casino. Le corpus historique 0.3 contenait 52 tests. Elle simule 500 parties de référence (44 337 actions) et 300 parties avec mobilité et offres (40 889 actions, dont 3 207 propositions), puis vérifie leurs replays identiques. Ces 800 parties synthétiques valident des invariants, pas le plaisir ou la durée de parties humaines. Elle vérifie également les frontières du protocole et le serveur de signalisation sur de vraies connexions WebSocket locales.
 
 `tests/browser.py` couvre le rendu WebGL2, la sauvegarde, les enchères, deux contextes Chromium reliés en WebRTC, la revanche, la perte de l'hôte, le mobile, le mode de secours, les choix de mobilité, les offres/contre-offres en WebRTC et le HTML autonome. Le résultat navigateur effectif est fourni par **GitHub Actions**, avec captures d'écran dans l'artefact `dicestrict-build-and-browser-report`. L'existence des tests ne signifie pas que tous les appareils et réseaux ont été validés.
 

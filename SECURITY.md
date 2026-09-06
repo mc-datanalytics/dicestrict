@@ -15,3 +15,7 @@ Une vulnérabilité contenant un secret ne doit pas être publiée dans une issu
 Les négociations sont visibles par tous les pairs : ne pas les présenter comme secrètes. Elles ne réservent pas les fonds. Une réponse concurrente sur une ancienne révision est revalidée contre l'offre et l'état actuels ; l'identité et l'identifiant de partie restent obligatoires. Les identifiants d'offres ne sont pas réutilisés dans une même partie.
 
 Les restrictions sur les cadeaux, hypothèques et constructions ne constituent pas une défense suffisante contre la collusion ou les échanges économiquement absurdes. Blitz peut être influencé par une faillite volontaire. Aucun classement ni gain persistant n'est associé à ces formats. Les jetons Mobilité sont des ressources gratuites de partie, sans achat.
+
+## Casino amical (0.4)
+
+Le casino ne manipule que le capital fictif de la partie, sans achat, conversion, retrait, publicité récompensée, XP ou monnaie de compte. Les mises ne sont pas des preuves de gains. Son générateur séparé protège la séquence des dés du plateau, mais il est public et prédictible. Les quotas, réserves et vérifications réseau ne rendent pas un hôte fiable et ne suffisent pas pour un classement ou une récompense. Voir `docs/LIVING_CITY.md` pour les règles et limites.

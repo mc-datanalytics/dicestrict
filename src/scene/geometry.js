@@ -3,7 +3,7 @@ const rgb = c => [parseInt(c.slice(1,3),16)/255,parseInt(c.slice(3,5),16)/255,pa
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 class Geometry {
   constructor(){this.data=[];}
-  vertex(p,n,c,uv=[0,0],tex=0){this.data.push(...p,...n,...(Array.isArray(c)?c:rgb(c)),...uv,tex);}
+  vertex(p,n,c,uv=[0,0],tex=this.material??0){this.data.push(...p,...n,...(Array.isArray(c)?c:rgb(c)),...uv,tex);}
   tri(a,b,c,normal,color){this.vertex(a,normal,color);this.vertex(b,normal,color);this.vertex(c,normal,color);}
   box(pos,size,color,radius=0.04,ry=0){
     const h=size.map(v=>v/2),r=Math.max(.00001,Math.min(radius,...h)),inner=h.map(v=>v-r),co=Math.cos(ry),si=Math.sin(ry);
@@ -22,6 +22,13 @@ class Geometry {
         for(const q of [0,1,2,0,2,3]) this.vertex(points[q].p,points[q].n,color);
       }
     }
+    return this;
+  }
+  block(pos,size,color,ry=0){
+    const h=size.map(v=>v/2),co=Math.cos(ry),si=Math.sin(ry);
+    const pt=(x,y,z)=>[pos[0]+x*co+z*si,pos[1]+y,pos[2]-x*si+z*co];
+    const faces=[[[1,0,0],[[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1]]],[[-1,0,0],[[-1,-1,1],[-1,1,1],[-1,1,-1],[-1,-1,-1]]],[[0,1,0],[[-1,1,-1],[-1,1,1],[1,1,1],[1,1,-1]]],[[0,-1,0],[[-1,-1,1],[-1,-1,-1],[1,-1,-1],[1,-1,1]]],[[0,0,1],[[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]],[[0,0,-1],[[1,-1,-1],[-1,-1,-1],[-1,1,-1],[1,1,-1]]]];
+    for(const [n,points] of faces)for(const i of [0,1,2,0,2,3]){const q=points[i];this.vertex(pt(q[0]*h[0],q[1]*h[1],q[2]*h[2]),[n[0]*co+n[2]*si,n[1],-n[0]*si+n[2]*co],color);}
     return this;
   }
   cylinder(pos,radius,height,color,segments=16,topRadius=radius){
