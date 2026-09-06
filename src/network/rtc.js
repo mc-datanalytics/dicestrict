@@ -1,3 +1,4 @@
+import { Outbox } from './outbox.js';
 import { DEAL_TYPES } from '../game/deals.js';
 import { CONFIG } from "../../config.js";
 import { createGame, applyAction, fingerprint, randomSeed } from "../game/engine.js";
@@ -63,7 +64,7 @@ class RoomSession {
     else if(signal.candidate){if(p.pc.remoteDescription)await p.pc.addIceCandidate(signal.candidate);else if(p.candidates.length<50)p.candidates.push(signal.candidate);}
   }
   attach(id,channel){
-    const p=this.peers.get(id);p.channel=channel;
+    const p=this.peers.get(id);p.outbox?.close();p.channel=channel;p.outbox=new Outbox(channel,message=>this.fail(message));
     let opened=false;
     const onOpen=()=>{
       if(opened||this.closed)return;opened=true;p.lastSeen=Date.now();
@@ -74,20 +75,27 @@ class RoomSession {
       this.emitLobby();
     };
     channel.onopen=onOpen;
-    channel.onmessage=e=>{try{if(!p.ingress())throw Error('Trop de paquets réseau.');p.lastSeen=Date.now();const msg=readPacket(e.data);this.receive(id,msg,p);}catch(error){this.onError(error.message);}};
-    channel.onclose=()=>{if(!this.closed){this.ready.delete(id);if(this.state)this.fail('Un joueur s’est déconnecté. La partie est suspendue.');else this.emitLobby();}};
+    channel.onmessage=e=>{if(this.closed||p.channel!==channel)return;try{if(!p.ingress())throw Error('Trop de paquets réseau.');p.lastSeen=Date.now();const msg=readPacket(e.data);this.receive(id,msg,p);}catch(error){this.onError(error.message);}};
+    channel.onclose=()=>{if(p.channel!==channel)return;p.outbox?.close();if(!this.closed){this.ready.delete(id);if(this.state)this.fail('Un joueur s’est déconnecté. La partie est suspendue.');else this.emitLobby();}};
     channel.onerror=()=>this.onError('Le canal multijoueur a rencontré une erreur.');
     // An incoming DataChannel can already be open when ondatachannel fires.
     if(channel.readyState==='open')onOpen();
   }
-  send(id,type,body={}){const ch=this.peers.get(id)?.channel;if(ch?.readyState==='open'&&ch.bufferedAmount<128000)ch.send(packet(type,body));}
+  send(id,type,body={}){
+    if(this.closed)return false;const p=this.peers.get(id),ch=p?.channel;
+    if(ch?.readyState!=='open')return false;
+    p.outbox??=new Outbox(ch,message=>this.fail(message));
+    return p.outbox.enqueue(packet(type,body));
+  }
   broadcast(type,body={}){for(const id of this.peers.keys())this.send(id,type,body);}
   receive(id,msg,peer){
+    if(this.closed)return;
     if(msg.type==='ping'){this.send(id,'pong');return;}if(msg.type==='pong')return;
     if(this.isHost){
       if(msg.type==='ready'){this.ready.add(id);this.send(id,'lobby-rules',{rules:this.rules});this.broadcast('roster',{ready:[...this.ready]});this.emitLobby();return;}
       if(msg.type==='resync'){if(this.state&&peer.limit())this.send(id,'snapshot',{state:this.state});return;}
-      if(msg.type!=='action'||!this.state||this.paused||!peer.limit())return;
+      if(msg.type!=='action'||!this.state||this.paused)return;
+      if(!peer.limit()){this.send(id,'error',{message:'Trop d’actions rapprochées. Patientez puis réessayez.'});return;}
       if(peer.seen.has(msg.requestId))return;peer.seen.add(msg.requestId);if(peer.seen.size>256)peer.seen.delete(peer.seen.values().next().value);
       // Public offers are immutable and revalidated atomically, so a concurrent turn must not silently discard a valid response.
       const safeConcurrentDeal=(DEAL_TYPES.includes(msg.action.type)||msg.action.type==='CASINO_BET')&&Number.isInteger(msg.revision)&&msg.revision>=0&&msg.revision<=this.state.revision;
@@ -95,9 +103,15 @@ class RoomSession {
       try{this.commit(id,msg.action);}catch(e){this.send(id,'error',{message:e.message});}
     }else{
       if(id!==this.room.hostId)return;
+      // A host greeting is a challenge: answer even if our initial ready was missed.
+      if(msg.type==='ready'){this.send(id,'ready');return;}
       if(msg.type==='roster'&&Array.isArray(msg.ready)){this.ready=new Set(msg.ready.filter(x=>typeof x==='string'));this.emitLobby();}
       if(msg.type==='lobby-rules'&&!this.state){this.rules=msg.rules;this.emitLobby();}
-      if(msg.type==='snapshot'){this.state=msg.state;this.onState(this.state);}
+      if(msg.type==='snapshot'){
+        // A late snapshot of this match must not undo already accepted commands.
+        if(this.state?.id===msg.state.id&&msg.state.revision<this.state.revision)return;
+        this.state=msg.state;this.onState(this.state);
+      }
       if(msg.type==='commit'){
         if(!this.state||msg.gameId!==this.state.id||msg.baseRevision!==this.state.revision){this.send(id,'resync');return;}
         const next=applyAction(this.state,msg.actor,msg.action);
@@ -114,7 +128,7 @@ class RoomSession {
   start(rounds=this.rules.rounds, options=this.rules){
     if(this.state&&this.state.phase!=='finished')throw Error('Terminez la partie actuelle avant la revanche.');
     if(!this.isHost||this.paused)throw Error('Seul l’hôte peut lancer la partie.');
-    if(this.room.members.some(m=>!this.ready.has(m.id)))throw Error('Attendez que tous les joueurs soient connectés.');
+    if(this.closed||this.room.members.some(m=>!this.ready.has(m.id)||(m.id!==this.localId&&this.peers.get(m.id)?.channel?.readyState!=='open')))throw Error('Attendez que tous les joueurs soient connectés.');
     const seats=this.room.members.map(m=>({id:m.id,name:m.name,bot:false}));
     const botNames=['Nova','Sacha','Milo'];while(seats.length<4)seats.push({id:`bot-${seats.length}`,name:botNames[seats.length-1]??'Nova',bot:true});
     this.state=createGame(seats,randomSeed(),{...options,rounds,id:`room-${crypto.randomUUID()}`});
@@ -123,14 +137,32 @@ class RoomSession {
   act(action){
     if(this.paused||!this.state)throw Error('La partie n’est pas disponible.');
     if(this.isHost)this.commit(this.localId,action);
-    else this.send(this.room.hostId,'action',{requestId:crypto.randomUUID(),gameId:this.state.id,revision:this.state.revision,action});
+    else if(!this.send(this.room.hostId,'action',{requestId:crypto.randomUUID(),gameId:this.state.id,revision:this.state.revision,action}))throw Error('Commande non transmise : vérifiez la connexion au salon.');
   }
   commit(actor,action){if(!this.isHost||this.paused||!this.state)throw Error('Hôte indisponible.');const baseRevision=this.state.revision;this.state=applyAction(this.state,actor,action);this.broadcast('commit',{gameId:this.state.id,actor,action,baseRevision,checksum:fingerprint(this.state)});this.onState(this.state,{actor,action});}
   rematch(rounds=this.rules.rounds){this.start(rounds);}
   emitLobby(){if(this.room)this.onLobby({...this.room,rules:this.rules,isHost:this.isHost,members:this.room.members.map(m=>({...m,ready:this.ready.has(m.id)}))});}
-  armHeartbeat(){clearInterval(this.heartbeat);this.heartbeat=setInterval(()=>{if(this.closed)return;this.broadcast('ping');for(const p of this.peers.values())if(p.channel?.readyState==='open'&&Date.now()-p.lastSeen>25000)this.fail('Un joueur ne répond plus. La partie est suspendue.');},5000);}
-  fail(message){if(this.closed||this.paused)return;this.paused=true;this.onClosed(message);}
-  leave(){this.closed=true;clearInterval(this.heartbeat);for(const p of this.peers.values())p.pc.close();this.peers.clear();this.ready.clear();this.ws?.close();this.room=null;this.state=null;}
+  heartbeatTick(now=Date.now()){
+    if(this.closed||this.paused)return;
+    for(const [id,p] of this.peers){
+      p.outbox?.flush();if(this.paused)return;
+      // Retry the application handshake, not ICE, with the existing heartbeat.
+      if(this.isHost&&!this.state&&!this.ready.has(id)&&p.channel?.readyState==='open'){
+        this.send(id,'ready');this.send(id,'lobby-rules',{rules:this.rules});
+      }
+      if(p.channel?.readyState==='open'&&now-p.lastSeen>25000){this.fail('Un joueur ne répond plus. La partie est suspendue.');return;}
+    }
+    this.broadcast('ping');
+  }
+  armHeartbeat(){clearInterval(this.heartbeat);this.heartbeat=setInterval(()=>this.heartbeatTick(),5000);}
+  fail(message){
+    if(this.closed||this.paused)return;this.paused=true;clearInterval(this.heartbeat);
+    // This alpha cannot resume a suspended table. Closing its links makes the
+    // terminal pause visible to every guest instead of accepting dead clicks.
+    for(const p of this.peers.values()){p.outbox?.close();p.channel?.close();}
+    this.onClosed(message);
+  }
+  leave(){this.closed=true;clearInterval(this.heartbeat);for(const p of this.peers.values()){p.outbox?.close();p.pc.close();}this.peers.clear();this.ready.clear();this.ws?.close();this.room=null;this.state=null;}
 }
 
 export { RoomSession };

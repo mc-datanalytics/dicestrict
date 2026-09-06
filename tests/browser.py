@@ -19,7 +19,8 @@ async def equal_states(host, guest):
     raise AssertionError('WebRTC states did not converge')
 
 async def trade_fixture(host, guest):
-    await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame,assertState}=await import('/src/game/engine.js');clearTimeout(app.botTimer);clearTimeout(app.busyTimer);app.settings.reduced=true;const s=createGame(app.state.players,42,{id:app.state.id,rounds:6,mobility:2,finishOnBankruptcy:true});s.round=3;s.properties[1].owner=s.players[0].id;s.properties[5].owner=s.players[0].id;s.properties[2].owner=s.players[1].id;s.properties[4].owner=s.players[1].id;assertState(s);app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
+    # Controlled fixtures use a forward revision, never a stale rollback.
+    await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame,assertState}=await import('/src/game/engine.js');clearTimeout(app.botTimer);clearTimeout(app.busyTimer);app.settings.reduced=true;const s=createGame(app.state.players,42,{id:app.state.id,rounds:6,mobility:2,finishOnBankruptcy:true});s.revision=app.state.revision+1;s.round=3;s.properties[1].owner=s.players[0].id;s.properties[5].owner=s.players[0].id;s.properties[2].owner=s.players[1].id;s.properties[4].owner=s.players[1].id;assertState(s);app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
     await equal_states(host,guest)
 
 async def main():
@@ -174,7 +175,7 @@ async def main():
             checks.append('Counter-offer UI reverses the bundles and commits only the accepted revised terms')
             await host.locator('[data-deal-ui="close"]').click();await guest.locator('[data-deal-ui="close"]').click()
             # Match-credit-only casino over a real DataChannel, not a mocked transport.
-            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame}=await import('/src/game/engine.js');const s=createGame(app.state.players,73,{id:app.state.id,casino:true,mobility:2});s.round=3;app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
+            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame}=await import('/src/game/engine.js');const s=createGame(app.state.players,73,{id:app.state.id,casino:true,mobility:2});s.revision=app.state.revision+1;s.round=3;app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
             await equal_states(host,guest)
             before=json.loads(await state(host))
             await guest.locator('[data-ui="casino"]').click()
@@ -248,6 +249,54 @@ async def main():
             await fallback.add_init_script("const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return type==='webgl2'?null:original.call(this,type,...args)}")
             await fallback.goto(URL);await fallback.locator('.fallback-grid').wait_for()
             await fallback.locator('[data-game="ROLL"]').click();checks.append('Accessible fallback remains playable without WebGL')
+            # Lifecycle fixtures: these check UI/recording scope, not human outcomes.
+            audit=await browser.new_page(viewport={'width':1360,'height':960})
+            audit.on('pageerror',lambda e: errors.append(str(e)))
+            await setup(audit)
+            await audit.locator('[data-ui="settings"]').click()
+            await audit.locator('[data-ui="playtest"]').click()
+            await audit.locator('#playtest-consent').check()
+            await audit.locator('[data-ui="close"]').last.click()
+            await audit.locator('[data-ui="settings"]').click()
+            await audit.locator('[data-ui="new-game"]').click()
+            await audit.locator('[data-ui="confirm-new"]').click()
+            assert await audit.evaluate("async()=>{const {app}=await import('/src/main.js');return app.playtest?.gameId===app.state.id;}")
+            await audit.evaluate("""async()=>{const {app}=await import('/src/main.js');clearTimeout(app.botTimer);app.state.phase='finished';app.state.winners=[app.state.players[0].id];app.finishedId=app.state.id;app.showResults();app.accept(structuredClone(app.state));}""")
+            assert await audit.locator('#modal').evaluate('(e)=>e.open')
+            assert await audit.locator('[data-ui="export-playtest"]').count()==1
+            checks.append('A same-match final snapshot preserves the results dialog and its matching recorder')
+            await audit.locator('[data-ui="rematch"]').click()
+            assert await audit.evaluate("async()=>(await import('/src/main.js')).app.playtest===null")
+            await audit.evaluate("""async()=>{const {app}=await import('/src/main.js');clearTimeout(app.botTimer);app.state.phase='finished';app.state.winners=[app.state.players[0].id];app.showResults();}""")
+            assert await audit.locator('[data-ui="export-playtest"]').count()==0
+            await audit.screenshot(path=str(OUT/'audit-results-current-match.png'),full_page=True)
+            checks.append('Consent arms one recording; an unarmed rematch cannot export a previous match trace')
+            await audit.close()
+            # Drop both initial application greetings, not the WebRTC transport.
+            # Recovery must happen via the real heartbeat rather than a test retry.
+            handshake_pages=[]
+            handshake_contexts=[await browser.new_context(),await browser.new_context()]
+            for ctx in handshake_contexts:
+                await ctx.route('**/config.js',config_route)
+                page=await ctx.new_page();handshake_pages.append(page)
+                page.on('pageerror',lambda e: errors.append(str(e)))
+                await setup(page)
+                await page.evaluate("""async()=>{const {RoomSession}=await import('/src/network/rtc.js');window.auditRoom=new RoomSession({onLobby(){},onState(){},onError(){},onClosed(){}});const r=window.auditRoom,send=r.send.bind(r);r.greetingDropped=false;r.send=(id,type,body)=>{if(type==='ready'&&!r.greetingDropped){r.greetingDropped=true;return true;}return send(id,type,body);};}""")
+            h,g=handshake_pages
+            code=await h.evaluate("async()=>(await window.auditRoom.connect('create','Audit host')).code")
+            await g.evaluate("async code=>window.auditRoom.connect('join','Audit guest',code)",code)
+            await h.wait_for_function("window.auditRoom.ready.size===2",timeout=15000)
+            assert await h.evaluate('window.auditRoom.greetingDropped')
+            assert await g.evaluate('window.auditRoom.greetingDropped')
+            checks.append('Real WebRTC recovers when both initial ready greetings are deliberately dropped')
+            await h.evaluate('window.auditRoom.start()')
+            await g.wait_for_function('window.auditRoom.state!==null')
+            await h.evaluate("window.auditRoom.fail('Controlled audit suspension')")
+            await g.wait_for_function('window.auditRoom.paused',timeout=10000)
+            checks.append('A terminal host pause propagates to the guest rather than leaving an apparently active table')
+            for page in handshake_pages:
+                await page.evaluate('window.auditRoom.leave()');await page.close()
+            for ctx in handshake_contexts:await ctx.close()
             assert not errors,errors
             checks.append('No uncaught JavaScript exceptions in desktop/multiplayer flows')
             await browser.close();browser=None

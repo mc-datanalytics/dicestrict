@@ -16,7 +16,7 @@ async def converge(pages, revision=None):
         await asyncio.sleep(.05)
     raise AssertionError('Four-peer convergence failed')
 async def main():
-    checks=[];errors=[];browser=None;pages=[];state=None;decision=None
+    checks=[];errors=[];browser=None;pages=[];state=None;decision=None;lobby=None
     server=subprocess.Popen(['node','scripts/dev.mjs','--port','4400'],cwd=ROOT,stdout=subprocess.DEVNULL)
     try:
         import urllib.request
@@ -46,7 +46,15 @@ async def main():
                         code=await p.locator('[data-testid="room-code"]').inner_text()
                     else:
                         await p.locator('#room-input').fill(code);await p.locator('[data-ui="join-room"]').click()
-                        await pages[0].wait_for_function(f"document.querySelectorAll('.lobby-member').length==={i+1}&&!document.querySelector('[data-ui=start-room]').disabled",timeout=30000)
+                        try:
+                            await pages[0].wait_for_function(f"document.querySelectorAll('.lobby-member').length==={i+1}&&!document.querySelector('[data-ui=start-room]').disabled",timeout=30000)
+                        except Exception:
+                            # Capture while the browser scope is still alive; the old
+                            # failure report only contained the previous finished game.
+                            lobby=[]
+                            for page in pages:
+                                lobby.append(await page.evaluate("""async()=>{const {app}=await import('/src/main.js');const r=app.session;return {room:r?.room,ready:[...(r?.ready??[])],paused:r?.paused,closed:r?.closed,toast:document.querySelector('#toast')?.textContent,peers:[...(r?.peers??[])].map(([id,p])=>({id,connection:p.pc.connectionState,ice:p.pc.iceConnectionState,channel:p.channel?.readyState,queued:p.outbox?.bytes}))};}"""))
+                            raise
                 host=pages[0]
                 await host.locator('#match-opening').select_option(opening)
                 await pages[-1].wait_for_function("async o=>(await import('/src/main.js')).app.room.rules.opening===o",arg=opening)
@@ -114,6 +122,6 @@ async def main():
         for i,page in enumerate(pages):
             try:await page.screenshot(path=str(OUT/f'playtest-failure-{i}.png'),full_page=True)
             except Exception:pass
-        (OUT/'playtest-failure.json').write_text(json.dumps({'passed':checks,'pageErrors':errors,'error':traceback.format_exc(),'state':state,'decision':decision},indent=2));raise
+        (OUT/'playtest-failure.json').write_text(json.dumps({'passed':checks,'pageErrors':errors,'error':traceback.format_exc(),'state':state,'decision':decision,'lobby':lobby},indent=2));raise
     finally:server.terminate();server.wait(timeout=10)
 if __name__=='__main__':asyncio.run(main())

@@ -34,6 +34,7 @@ function createGame(seats, seed = 1, options = {}) {
   const mobility = options.mobility ?? 0, finishOnBankruptcy = options.finishOnBankruptcy ?? false;
   demand(integer(mobility, 0, 3) && typeof finishOnBankruptcy === 'boolean', 'Règles de partie invalides.');
   const casino = options.casino ?? false; demand(typeof casino === 'boolean', 'Règle casino invalide.');
+  demand(typeof (options.id ?? `local-${seed}`) === 'string' && (options.id ?? `local-${seed}`).length > 0 && (options.id ?? `local-${seed}`).length <= 100, 'Identifiant de partie invalide.');
   const opening = options.opening ?? 'classic'; demand(validOpening(opening), 'Ouverture invalide.');
   return {
     opening, casino: createCasino(seed, casino),
@@ -223,12 +224,12 @@ function applyAction(state, actorId, action) {
 function assertState(s) {
   demand(s && typeof s === 'object' && s.version === RULES.version, 'Version de partie incompatible.');
   demand(validOpening(s.opening), 'Ouverture de partie incompatible.');
-  demand(typeof s.id === 'string' && s.id.length <= 100, 'Identifiant invalide.');
+  demand(typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 100, 'Identifiant invalide.');
   demand(integer(s.rng,1,0xffffffff) && integer(s.revision,0,100000), 'État invalide.');
   demand(Array.isArray(s.players) && s.players.length >= 2 && s.players.length <= 4, 'Joueurs invalides.');
   const ids = new Set();
   for (const p of s.players) {
-    demand(p && /^[\w-]{1,80}$/.test(p.id) && !ids.has(p.id), 'Identifiant joueur invalide.'); ids.add(p.id);
+    demand(p && typeof p.id === 'string' && /^[\w-]{1,80}$/.test(p.id) && !ids.has(p.id), 'Identifiant joueur invalide.'); ids.add(p.id);
     demand(typeof p.name === 'string' && p.name.length > 0 && p.name.length <= 20 && p.name === cleanName(p.name), 'Nom invalide.');
     demand(integer(p.cash,0,10000000) && integer(p.position,0,27) && typeof p.bot === 'boolean' && typeof p.bankrupt === 'boolean', 'Joueur invalide.');
   }
