@@ -1,4 +1,19 @@
-# Validation — alpha 0.2.0
+# Validation — alpha 0.3.0
+
+## Contrôles de cette révision
+
+Exécuté localement le 6 septembre 2026 : `npm run check`, `npm test`, `npm run build`. **52 tests Node réussis.** Le corpus synthétique comprend 500 parties de référence (44 337 actions) et 300 parties avec mobilité/offres (40 889 actions, 3 207 offres). Les replays sont identiques. Il ne s'agit ni d'avis collectés, ni de tests utilisateurs, ni d'une mesure d'équilibrage.
+
+Les scénarios navigateur couvrent maintenant les formats annoncés, la décision de mobilité conservée après rechargement, la négociation non modale qui conserve une saisie, les échanges/contre-offres hors tour sur deux vrais DataChannels, le rendu du bundle HTML autonome et les commandes à 390 px, en plus des contrôles précédents. La validation effective dépend de la conclusion du run GitHub Actions de cette révision et de `test-results/browser-report.json` ; ne pas déduire le succès de l'existence des scripts ou des artefacts.
+
+Le navigateur local de rédaction ne permet pas la navigation sur le serveur de test : les essais réels sont délégués au runner GitHub autorisé. Ils conservent le contrôle strict WebGL2. Les captures servent à vérifier le rendu et la disposition, pas la fluidité sur GPU réel. Les deux contextes WebRTC sont isolés mais sur la même machine ; ils ne valident pas les réseaux publics ou TURN.
+
+## Migration
+
+Protocole et schéma de sauvegarde v3. La sauvegarde v2 reste dans sa clé locale mais n'est pas chargée par 0.3. Pas de migration de partie en cours ni de compatibilité réseau inter-versions.
+
+## Historique — preuve distincte de la version 0.2
+
 
 ## Résultat vérifié le 6 septembre 2026
 
