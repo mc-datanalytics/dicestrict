@@ -46,6 +46,33 @@ async def main():
             host=await host_ctx.new_page();host.on('pageerror',lambda e: errors.append(str(e)))
             await setup(host)
             await host.screenshot(path=str(OUT/'desktop.png'),full_page=True)
+            # Read-only visual fixtures: compare empty/developed city and day/night renderings.
+            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame}=await import('/src/game/engine.js');const {BOARD}=await import('/src/game/board.js');const s=createGame([{id:'you',name:'Vous'},{id:'friend',name:'Ami'}],42,{id:'visual-city',casino:true});s.players.forEach(p=>p.cash=5000);for(const t of BOARD)if(t.kind==='lot'){s.properties[t.id].owner=s.players[t.group%2].id;s.properties[t.id].level=t.group%4;}app.settings.reduced=false;app.scene.configure({reduced:false,living:true,quality:'high',dayMode:'day'});app.accept(s);}""")
+            await host.wait_for_timeout(250)
+            await host.screenshot(path=str(OUT/'city-developed-day.png'),full_page=True)
+            city=await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {fingerprint}=await import('/src/game/engine.js');const before=fingerprint(app.state);const scene=app.scene;scene.dirty=true;scene.render(performance.now()+100);return {owned:scene.city.city.owned,levels:scene.city.city.development,stats:scene.city.stats,unchanged:before===fingerprint(app.state),error:scene.renderer.gl.getError()};}""")
+            assert city['owned']==16 and city['levels']==24 and city['unchanged'] and city['error']==0,city
+            assert city['stats']['cars']<=18 and city['stats']['pedestrians']<=48
+            checks.append('City geometry and bounded crowds reflect 16 owned lots / 24 levels without changing game state')
+            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');app.scene.configure({dayMode:'night'});}""")
+            await host.wait_for_timeout(200)
+            await host.screenshot(path=str(OUT/'city-developed-night.png'),full_page=True)
+            assert await host.evaluate("async()=>{const {app}=await import('/src/main.js');return app.scene.renderer.night===1&&app.scene.renderer.gl.getError()===0;}")
+            checks.append('Night ambience renders in real WebGL2 with emissive windows and zero GL errors')
+            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');app.scene.configure({dayMode:'day'});app.act({type:'UPGRADE',tile:1});}""")
+            await host.wait_for_timeout(150)
+            assert await host.evaluate("async()=>{const {app}=await import('/src/main.js');return app.scene.city.cranes.some(c=>c.id===1);}")
+            await host.screenshot(path=str(OUT/'city-construction.png'),full_page=True)
+            await host.evaluate("async()=>{const {app}=await import('/src/main.js');app.settings.reduced=true;app.scene.configure({reduced:true});}")
+            # Drain resize notifications from full-page captures before measuring idle work.
+            idle=await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const s=app.scene;let last=s.frameCount,quiet=performance.now();const start=quiet,history=[];while(performance.now()-start<8000){await new Promise(r=>setTimeout(r,100));const rect=s.canvas.getBoundingClientRect();history.push({frame:s.frameCount,dirty:s.dirty,reduced:s.reduced,w:rect.width,h:rect.height});if(s.frameCount!==last||s.dirty){last=s.frameCount;quiet=performance.now();}if(performance.now()-quiet>=700)return {idle:true,count:last,history};}return {idle:false,history};}""")
+            (OUT/'idle-gpu.json').write_text(json.dumps(idle,indent=2))
+            assert idle['idle'],idle
+            count=idle['count']
+            await host.wait_for_timeout(700)
+            after_idle=await host.evaluate("async()=>{const {app}=await import('/src/main.js');return {count:app.scene.frameCount,reduced:app.scene.reduced,dirty:app.scene.dirty};}")
+            assert count==after_idle['count'] and after_idle['reduced'],after_idle
+            checks.append('Upgrade starts a crane effect; reduced-motion mode stops idle GPU submissions')
             # Read a freshly rendered frame, not a cleared preserveDrawingBuffer=false surface.
             colors=await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const scene=app.scene;scene.dirty=true;scene.render(performance.now()+50);const gl=scene.renderer.gl,p=new Uint8Array(4),colors=new Set();for(let x=50;x<gl.drawingBufferWidth;x+=100)for(let y=50;y<gl.drawingBufferHeight;y+=100){gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,p);colors.add([...p].join(','));}return {count:colors.size,error:gl.getError()};}""")
             assert colors['count']>8 and colors['error']==0, colors
@@ -88,6 +115,11 @@ async def main():
             await host.locator('[name="match-preset"][value="blitz"]').check()
             await guest.wait_for_function("document.querySelector('#modal-body').textContent.includes('6 manches')")
             assert await guest.locator('[data-ui="start-room"]').count()==0
+            await host.locator('#match-casino').uncheck()
+            await guest.wait_for_function("document.querySelector('#modal-body').textContent.includes('Casino désactivé')")
+            await host.locator('#match-casino').check()
+            await guest.wait_for_function("document.querySelector('#modal-body').textContent.includes('Casino activé')")
+            checks.append('Casino rule is disclosed to guests and selected before the match starts')
             await host.locator('[data-ui="start-room"]').click()
             await guest.wait_for_function("!document.querySelector('#modal').open")
             assert await state(host)==await state(guest)
@@ -141,6 +173,31 @@ async def main():
             ss=json.loads(await state(host));assert ss['players'][0]['cash']==1640 and ss['players'][1]['cash']==1960 and not ss['deals']
             checks.append('Counter-offer UI reverses the bundles and commits only the accepted revised terms')
             await host.locator('[data-deal-ui="close"]').click();await guest.locator('[data-deal-ui="close"]').click()
+            # Match-credit-only casino over a real DataChannel, not a mocked transport.
+            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame}=await import('/src/game/engine.js');const s=createGame(app.state.players,73,{id:app.state.id,casino:true,mobility:2});s.round=3;app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
+            await equal_states(host,guest)
+            before=json.loads(await state(host))
+            await guest.locator('[data-ui="casino"]').click()
+            assert not await guest.locator('#modal').evaluate('(el)=>el.open')
+            assert await guest.locator('#casino-form [type="submit"]').is_disabled()
+            await guest.locator('#casino-stake').select_option('40')
+            await guest.locator('#casino-confirm').check()
+            await guest.locator('#casino-form [type="submit"]').click()
+            await host.wait_for_function("document.querySelector('#activity').textContent.includes('Casino')")
+            await equal_states(host,guest)
+            after=json.loads(await state(host));result=after['casino']['results'][0]
+            assert after['rng']==before['rng'] and after['dice']==before['dice'] and after['turn']==0
+            assert result['actor']==after['players'][1]['id'] and result['stake']==40
+            assert after['players'][1]['cash']==before['players'][1]['cash']-40+result['returned']
+            assert after['players'][0]['cash']==before['players'][0]['cash']
+            assert await guest.locator('#casino-form [type="submit"]').is_disabled()
+            await guest.screenshot(path=str(OUT/'casino-multiplayer.png'),full_page=True)
+            checks.append('Off-turn confirmed casino bet settles the same match cash on both peers without altering board RNG')
+            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const s=structuredClone(app.state);s.phase='end';app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);app.act({type:'END'});}""")
+            await equal_states(host,guest)
+            assert await guest.locator('#casino-panel').is_hidden()
+            assert await guest.locator('[data-game="ROLL"]').is_enabled()
+            checks.append('Casino drawer closes on the participant’s turn and returns control to the board')
             # End the test match deterministically at its round cap, then test the same-room rematch.
             await host.evaluate("""async()=>{const {app}=await import('/src/main.js');clearTimeout(app.botTimer);clearTimeout(app.busyTimer);const s=structuredClone(app.state);s.phase='end';s.auction=null;s.turn=3;s.round=s.maxRounds;app.session.state=s;app.state=s;app.session.broadcast('snapshot',{state:s});app.session.commit(s.players[3].id,{type:'END'});}""")
             await host.wait_for_function("document.querySelector('[data-ui=rematch]')!==null")
@@ -166,6 +223,12 @@ async def main():
             assert await mobile.locator('#deal-form').is_visible()
             await mobile.screenshot(path=str(OUT/'feedback-mobile.png'),full_page=True)
             checks.append('390px touch viewport exposes mobility controls and a usable non-overflowing deal composer')
+            await mobile.locator('[data-deal-ui="close"]').click()
+            await mobile.locator('[data-ui="casino"]').click()
+            assert await mobile.locator('#casino-form').is_visible()
+            assert await mobile.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
+            await mobile.screenshot(path=str(OUT/'casino-mobile.png'),full_page=True)
+            checks.append('Casino disclosure and controls fit a 390px touch viewport without horizontal overflow')
             # Also execute the generated standalone artifact, not only native source modules.
             offline=await browser.new_page(viewport={'width':1440,'height':960})
             offline.on('pageerror',lambda e: errors.append(str(e)))
@@ -177,6 +240,10 @@ async def main():
             await offline.locator('[data-ui="deals"]').click()
             assert await offline.locator('#deal-form').is_visible()
             checks.append('Generated offline HTML initializes real WebGL2 and supports mobility and negotiation UI')
+            await offline.locator('[data-deal-ui="close"]').click()
+            await offline.locator('[data-ui="casino"]').click()
+            assert await offline.locator('#casino-form').is_visible()
+            checks.append('Standalone HTML includes the living city and the casino without external assets')
             fallback=await browser.new_page()
             await fallback.add_init_script("const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return type==='webgl2'?null:original.call(this,type,...args)}")
             await fallback.goto(URL);await fallback.locator('.fallback-grid').wait_for()

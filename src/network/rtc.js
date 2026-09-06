@@ -5,7 +5,7 @@ import { readPacket, packet, createLimiter } from "./protocol.js";
 /** Host-authoritative CASUAL rooms. WebRTC data channels carry play, never reward proofs. */
 class RoomSession {
   constructor({onLobby,onState,onError,onClosed}){
-    Object.assign(this,{onLobby,onState,onError,onClosed});this.peers=new Map();this.room=null;this.state=null;this.closed=false;this.paused=false;this.ready=new Set();this.rules={rounds:12,mobility:2,finishOnBankruptcy:false};
+    Object.assign(this,{onLobby,onState,onError,onClosed});this.peers=new Map();this.room=null;this.state=null;this.closed=false;this.paused=false;this.ready=new Set();this.rules={rounds:12,mobility:2,finishOnBankruptcy:false,casino:true};
   }
   async connect(kind,name,code=''){
     if(!globalThis.RTCPeerConnection)throw Error('Ce navigateur ne prend pas en charge WebRTC.');
@@ -64,10 +64,21 @@ class RoomSession {
   }
   attach(id,channel){
     const p=this.peers.get(id);p.channel=channel;
-    channel.onopen=()=>{p.lastSeen=Date.now();this.ready.add(id);this.send(id,'ready');this.emitLobby();if(this.isHost)this.broadcast('roster',{ready:[...this.ready]});};
+    let opened=false;
+    const onOpen=()=>{
+      if(opened||this.closed)return;opened=true;p.lastSeen=Date.now();
+      // Host readiness requires the peer's application handshake, not just ICE.
+      if(!this.isHost)this.ready.add(id);
+      this.send(id,'ready');
+      if(this.isHost)this.send(id,'lobby-rules',{rules:this.rules});
+      this.emitLobby();
+    };
+    channel.onopen=onOpen;
     channel.onmessage=e=>{try{if(!p.ingress())throw Error('Trop de paquets réseau.');p.lastSeen=Date.now();const msg=readPacket(e.data);this.receive(id,msg,p);}catch(error){this.onError(error.message);}};
     channel.onclose=()=>{if(!this.closed){this.ready.delete(id);if(this.state)this.fail('Un joueur s’est déconnecté. La partie est suspendue.');else this.emitLobby();}};
     channel.onerror=()=>this.onError('Le canal multijoueur a rencontré une erreur.');
+    // An incoming DataChannel can already be open when ondatachannel fires.
+    if(channel.readyState==='open')onOpen();
   }
   send(id,type,body={}){const ch=this.peers.get(id)?.channel;if(ch?.readyState==='open'&&ch.bufferedAmount<128000)ch.send(packet(type,body));}
   broadcast(type,body={}){for(const id of this.peers.keys())this.send(id,type,body);}
@@ -79,7 +90,7 @@ class RoomSession {
       if(msg.type!=='action'||!this.state||this.paused||!peer.limit())return;
       if(peer.seen.has(msg.requestId))return;peer.seen.add(msg.requestId);if(peer.seen.size>256)peer.seen.delete(peer.seen.values().next().value);
       // Public offers are immutable and revalidated atomically, so a concurrent turn must not silently discard a valid response.
-      const safeConcurrentDeal=DEAL_TYPES.includes(msg.action.type)&&Number.isInteger(msg.revision)&&msg.revision>=0&&msg.revision<=this.state.revision;
+      const safeConcurrentDeal=(DEAL_TYPES.includes(msg.action.type)||msg.action.type==='CASINO_BET')&&Number.isInteger(msg.revision)&&msg.revision>=0&&msg.revision<=this.state.revision;
       if(msg.gameId!==this.state.id||(msg.revision!==this.state.revision&&!safeConcurrentDeal)){this.send(id,'snapshot',{state:this.state});return;}
       try{this.commit(id,msg.action);}catch(e){this.send(id,'error',{message:e.message});}
     }else{

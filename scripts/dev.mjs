@@ -44,7 +44,7 @@ function handle(c,raw){try{
 const server=http.createServer(async(req,res)=>{try{
   const path=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
   if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);res.end();return;}
-  if(!['/','/index.html','/config.js'].includes(path)&&!['/src/','/public/'].some(p=>path.startsWith(p))){res.writeHead(404);res.end('Not found');return;}
+  if(!['/','/index.html','/lab.html','/config.js'].includes(path)&&!['/src/','/public/'].some(p=>path.startsWith(p))){res.writeHead(404);res.end('Not found');return;}
   const file=resolve(root,'.'+(path==='/'?'/index.html':path));if(!file.startsWith(root+'/')){res.writeHead(403);res.end();return;}
   if(!(await stat(file)).isFile())throw Error('Not a file');const data=await readFile(file);res.writeHead(200,{'Content-Type':mime[extname(file)]??'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});res.end(req.method==='HEAD'?undefined:data);
 }catch{res.writeHead(404);res.end('Not found');}});
