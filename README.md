@@ -2,7 +2,7 @@
 
 **Roll. Build. Rule.** Une ville miniature, quatre ambitions, un lancer à la fois.
 
-Jeu original de stratégie immobilière en 3D pour navigateur. Ville **Aurora**, interface française crème / vert profond / quartiers pastel. **Alpha 0.6.0**, pas une sortie commerciale. Aucun déploiement CrazyGames ou système de récompenses permanentes.
+Jeu original de stratégie immobilière en 3D pour navigateur. Ville **Aurora**, interface française crème / vert profond / quartiers pastel. **Alpha 0.6.1**, pas une sortie commerciale. Aucun déploiement CrazyGames ou système de récompenses permanentes.
 
 ## Jouer et ouvrir le lab
 
@@ -25,6 +25,12 @@ npm run preview
 ```
 
 Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le lab inclut son Worker et ne touche pas aux sauvegardes du jeu. Le jeu autonome permet le mode local ; le multijoueur nécessite une signalisation. Le lab est exclu du build ordinaire et de CrazyGames.
+
+## 0.6.1 : correctifs de fiabilité
+
+Exports d’essais limités à la partie enregistrée, résultats conservés après resynchronisation, envois réseau en file bornée plutôt qu’abandonnés en cas de congestion, handshake relancé, suspension propagée aux autres pairs et snapshots anciens refusés. **118 tests Node**, dont 21 nouveaux contrôles ciblés. Les montants, dés et options de départ ne changent pas. [Détails de l’audit](docs/BUGFIX_AUDIT_0_6_1.md) et [preuve de validation](docs/VALIDATION.md).
+
+Exporter une trace avant de lancer une autre partie : l’enregistreur est effacé au changement de session et le consentement n’arme que la prochaine partie.
 
 ## 0.6 : tester une ouverture plus équitable
 

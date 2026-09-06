@@ -1,30 +1,20 @@
-# Validation — alpha 0.6.0
+# Validation — alpha 0.6.1
 
-## Séparer les preuves
+## Révision de l’audit
 
-Le plan et le choix de la variante précèdent les corpus de confirmation : voir les commits et résultats dans [FAIR_OPENING_RESULTS.md](experiments/FAIR_OPENING_RESULTS.md). **19 800 trajectoires locales terminées, zéro échec**. Ces simulations ne constituent pas une recette humaine.
+Code corrigé : **`cd1bd538b49ce0934e8192316f99098d46d99775`**. [CI normale sur ce code](https://github.com/mc-datanalytics/dicestrict/actions/runs/34057877712). La courte matérialisation des sources n’est pas une preuve de recette navigateur : seule la suite complète et son artefact font foi. Les changements documentaires postérieurs ne modifient pas le code testé.
 
-Le contrôle local de sources compte 45 fichiers JavaScript valides ; **97 tests Node passent**. Le jeu et le lab autonomes sont compilés. Les recettes navigateur sont exécutées sur GitHub Actions : le navigateur local de rédaction bloque la navigation de test et aucune tentative de contournement n'est utilisée.
+**118 tests Node réussis**, aucun échec ou test ignoré ; **48 fichiers JavaScript** contrôlés ; constructions du jeu et du laboratoire réussies. Les 11 premiers tests ciblés échouaient sur la base non modifiée `b12332c`, puis passent avec les correctifs. Les 21 nouvelles régressions sont dans `tests/bug-audit.test.mjs` et `tests/outbox.test.mjs`.
 
-## Recette navigateur réellement exécutée
+`tests/browser.py` conserve ses 24 contrôles et en ajoute quatre : résultats après snapshot final, consentement/revanche/export, handshake avec les deux premières salutations volontairement perdues et propagation d’une suspension terminale. `tests/lab_browser.py` conserve ses sept contrôles ; `tests/playtest_browser.py` ses trois contrôles de parties complètes et d’import. Aucun seuil de convergence, test WebGL2 ou limite réseau n’est supprimé. Les fixtures indépendantes de négociation avancent leur révision au lieu d’imposer un snapshot périmé. En cas d’échec à quatre pairs, le diagnostic du salon est collecté avant de fermer les pages.
 
-Le [run 34054343253](https://github.com/mc-datanalytics/dicestrict/actions/runs/34054343253) a réussi tous les contrôles de code et les trois suites navigateur : **97 tests Node, 24 contrôles du jeu, 7 du lab et 3 des sessions complètes**. Les trois rapports récupérés ont `pageErrors: []` ; le dernier précise `humanParticipants: 0` et des entrées automatisées.
+Une comparaison locale de l’ancien et du nouveau moteur a reproduit exactement **200 trajectoires et 29 196 commandes**, Classique/comp-60, avec/sans négociation. Cela n’est pas une nouvelle campagne d’équilibrage : les résultats statistiques historiques restent liés à l’ancienne empreinte du moteur. L’empreinte courante moteur/politiques/lab est `c9a114cc1a346369760d5c6ff10ea9f2bb3efd55eddb34c9338e6e85981ca9aa`.
 
-Deux parties complètes, Classique puis comp-60, ont chacune exécuté **147 commandes légales par l'interface**, dont **un échange accepté**, avec quatre pairs WebRTC. La trace exportée a été vérifiée en Node et importée dans le lab jusqu'à l'empreinte finale. Les captures de départ, négociation et import ont été inspectées. L'artefact **9995637996** a été téléchargé et son `tested-source.tar` comparé au code local : sources `src/`, `scripts/`, `tests/`, `package.json` et `lab.html` identiques octet par octet.
+[Audit détaillé et limites](BUGFIX_AUDIT_0_6_1.md). Les résultats des exécutions courantes et leurs rapports doivent être vérifiés sur le lien CI ci-dessus : un artefact peut exister après un échec. Chromium/SwiftShader est un rendu WebGL2 effectif sur GPU logiciel ; les pairs sont sur le même runner. Pas de validation Safari/iOS, téléphone réel, TURN inter-réseaux ou participation humaine. Le navigateur local de rédaction interdit la navigation de test ; les parcours sont exécutés sur le runner autorisé, sans contourner cette restriction.
 
-La conclusion globale de ce premier run est néanmoins **échec** : seule l'étape ultérieure de publication Git a été refusée, car le jeton du runner n'a pas la permission de modifier `ci.yml`. Aucun test n'a été supprimé pour résoudre cela. Le [run de publication 34055060055](https://github.com/mc-datanalytics/dicestrict/actions/runs/34055060055), **réussi**, a réappliqué exactement le même payload SHA-256, revérifié les tests Node et publié uniquement les sources sous `a2f970d8ee5b1a4265177363618ecfef171b7844`. Les fichiers de workflow sont gérés séparément via le connecteur autorisé.
+## Historique séparé
 
-La CI normale du dépôt exécute désormais les trois suites directement sur les fichiers publiés ; ses résultats doivent être lus sur la révision concernée. La réussite de la courte étape de publication n'est pas une nouvelle recette navigateur.
-
-## Contrôles ajoutés
-
-`tests/fair-opening.test.mjs` vérifie capitaux initiaux, absence de second versement, ouvertures interdites, ordre alterné et élimination, replays des six variantes à 2/3/4 joueurs, négociation légale et atomique, absence de lecture des futurs tirages, quotas, snapshots v4 refusés, messages de salon v5, pseudonymisation des traces (y compris identifiants ressemblant à des pseudonymes ou propriétés JS), altérations, horodatages, commandes manquantes et replays négociés.
-
-`tests/playtest_browser.py` lance deux parties complètes avec quatre contextes Chromium isolés et de véritables DataChannels WebRTC locaux. Départ vierge, aucune injection de propriété ou de fortune : les commandes de lancer, achat, gestion et négociation passent par les contrôles de l'interface. La graine fonctionnelle a été choisie pour permettre une transaction reproductible ; elle n'est pas ajoutée aux résultats statistiques de confirmation. Les entrées sont **automatisées par des politiques**, même si les sièges réseau ne sont pas marqués IA : **zéro participant humain**.
-
-Le test vérifie le choix de départ annoncé à tous, les capitaux, l'accord des quatre états après chaque commande, une négociation conclue, le terme de la partie, l'export volontaire, sa pseudonymisation, sa vérification en Node et son import/rejeu dans le lab. Les limites de fréquence réseau ne sont pas désactivées. Les rapports distinguent explicitement ces parcours de véritables sessions humaines.
-
-Les suites préexistantes du jeu (`tests/browser.py`) et du lab (`tests/lab_browser.py`) gardent leurs contrôles WebGL2 stricts, mobilité, enchères, sauvegardes, casino, négociation/contre-offres, revanche, perte d'hôte, mobile, Worker et offline. Un rendu de secours ne remplace pas la vérification WebGL2.
+L’ancienne recette 0.6 (97 tests Node et 24 + 7 + 3 contrôles navigateur) reste documentée dans [la révision antérieure](https://github.com/mc-datanalytics/dicestrict/blob/b12332c211875ad08cc2918b3ce3be64008e8b11/docs/VALIDATION.md). Elle n’est pas utilisée comme preuve des correctifs. La CI normale `34055490314` avait ensuite échoué dans la connexion de la deuxième table à quatre pairs ; l’audit a reproduit des défauts de handshake et conservé de meilleurs diagnostics, sans prétendre avoir identifié toutes les causes d’intermittence.
 
 ## Reproduire
 
@@ -36,14 +26,6 @@ python tests/browser.py
 npm run build:lab
 python tests/lab_browser.py
 python tests/playtest_browser.py
-npm run balance:opening -- development lab-results/fair-opening
-npm run balance:opening -- confirmation lab-results/fair-opening
 ```
 
-## Portée et limites
-
-Les recettes Chromium utilisent SwiftShader : API WebGL2 réelle, GPU logiciel. Les quatre pairs restent sur un seul runner. Ni téléphones physiques, Safari/iOS, GPU matériel, ni changements de réseau ou TURN ne sont couverts. Les fichiers exportés ne sont pas des preuves d'authenticité ou des droits à des récompenses.
-
-La validation humaine nécessite encore les sessions et retours décrits dans [HUMAN_PLAYTESTS.md](HUMAN_PLAYTESTS.md). Issue #4 maintenue ouverte. Aucune publication CrazyGames, aucun arbitre serveur, XP ou portefeuille n'est déployé. Les données historiques de la 0.5 restent disponibles dans l'historique du dépôt, pas utilisées comme preuve de la 0.6.
-
-Les artefacts peuvent exister après un échec. Toujours contrôler la conclusion du run, ses révisions et les rapports ; rétention de 14 jours sur GitHub Actions.
+Les artefacts Actions sont conservés 14 jours. Les sessions complètes automatisées ne sont pas des tests utilisateurs : zéro participant humain. La validation humaine décrite dans [HUMAN_PLAYTESTS.md](HUMAN_PLAYTESTS.md) et l’issue #4 restent ouvertes. Ni production CrazyGames, ni récompenses de compte, ni arbitre serveur déployé. Le protocole et les règles v5, le lab v2 et les politiques v3 restent inchangés.
