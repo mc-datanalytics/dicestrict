@@ -19,3 +19,9 @@ Les restrictions sur les cadeaux, hypothèques et constructions ne constituent p
 ## Casino amical (0.4)
 
 Le casino ne manipule que le capital fictif de la partie, sans achat, conversion, retrait, publicité récompensée, XP ou monnaie de compte. Les mises ne sont pas des preuves de gains. Son générateur séparé protège la séquence des dés du plateau, mais il est public et prédictible. Les quotas, réserves et vérifications réseau ne rendent pas un hôte fiable et ne suffisent pas pour un classement ou une récompense. Voir `docs/LIVING_CITY.md` pour les règles et limites.
+
+## Ouverture et traces locales (0.6)
+
+La compensation de siège est un paramètre versionné et annoncé, en crédits de partie. Aucun droit à des récompenses persistantes. Les messages v4 ne sont pas acceptés par v5.
+
+L'enregistrement d'essai est volontaire, désactivé par défaut, en mémoire et sans envoi automatique. L'export retire les identifiants/noms/code de salon, mais il reste un fichier à partager avec l'accord des participants. Le vérificateur rejoue les commandes et refuse les incohérences ; un fichier fabriqué légalement peut cependant passer. `humanParticipationVerified: false` est obligatoire : aucune trace ne prouve une participation humaine ni l'honnêteté de l'hôte et ne doit créditer XP/monnaie/classement.

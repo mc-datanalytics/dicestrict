@@ -60,10 +60,10 @@ test('WebRTC host revalidates concurrent scoped casino requests and binds identi
  r.receive('third',{...msg,requestId:'future',revision:90},peer);assert.equal(r.state.revision,6);assert.equal(sent.at(-1),'snapshot');
  r.receive('third',{...msg,requestId:'old-match',gameId:'old'},peer);assert.equal(r.state.revision,6);
 });
-test('v4 network and lobby rules explicitly validate casino; v3 is incompatible',()=>{
- assert.equal(readPacket(packet('lobby-rules',{rules:{rounds:12,mobility:2,finishOnBankruptcy:false,casino:true}})).rules.casino,true);
+test('v5 network and lobby rules explicitly validate casino and opening; v4 is incompatible',()=>{
+ assert.equal(readPacket(packet('lobby-rules',{rules:{opening:'classic',rounds:12,mobility:2,finishOnBankruptcy:false,casino:true}})).rules.casino,true);
  assert.throws(()=>readPacket(JSON.stringify({v:3,type:'snapshot',state:fresh()})));
- assert.throws(()=>readPacket(packet('lobby-rules',{rules:{rounds:12,mobility:2,finishOnBankruptcy:false}})));
+ assert.throws(()=>readPacket(packet('lobby-rules',{rules:{opening:'classic',rounds:12,mobility:2,finishOnBankruptcy:false}})));
  assert.equal(readPacket(packet('snapshot',{state:fresh()})).state.casino.enabled,true);
 });
 test('100 complete casino-enabled bot trajectories replay identically; no persistent rewards',()=>{

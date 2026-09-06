@@ -9,7 +9,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -24,6 +24,7 @@ jobs:
       - run: python tests/browser.py
       - run: npm run build:lab
       - run: python tests/lab_browser.py
+      - run: python tests/playtest_browser.py
       - name: Capture exact sources
         if: always()
         run: git archive --format=tar -o source.tar HEAD

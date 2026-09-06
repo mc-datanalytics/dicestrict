@@ -40,7 +40,7 @@ const EVENTS = Object.freeze([
   { title: 'Une bonne action', text: 'Vous financez la fête des voisins.', amount: -60 },
   { title: 'Belle rencontre', text: 'Un nouveau partenaire vous fait confiance.', amount: 80 },
 ]);
-const RULES = Object.freeze({ version: 4, startCash: 1800, lapIncome: 220, rounds: 12, maxLevel: 3, auctionStep: 20 });
+const RULES = Object.freeze({ version: 5, startCash: 1800, lapIncome: 220, rounds: 12, maxLevel: 3, auctionStep: 20 });
 function tilePosition(id) {
   const side = Math.floor(id / 7), t = id % 7, edge = 5.6, step = 1.6;
   return side === 0 ? [edge - t * step, edge] : side === 1 ? [-edge, edge - t * step] :

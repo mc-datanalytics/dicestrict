@@ -1,0 +1,19 @@
+{
+  "status": "template-not-observations",
+  "group": null,
+  "actualHumanParticipants": 0,
+  "rounds": 12,
+  "mobility": 2,
+  "casino": false,
+  "sessions": [
+    {"session":1,"condition":"A","opening":"classic","seats":["P1","P2","P3","P4"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]},
+    {"session":2,"condition":"B","opening":"comp-60","seats":["P2","P3","P4","P1"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]},
+    {"session":3,"condition":"B","opening":"comp-60","seats":["P3","P4","P1","P2"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]},
+    {"session":4,"condition":"A","opening":"classic","seats":["P4","P1","P2","P3"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]},
+    {"session":5,"condition":"B","opening":"comp-60","seats":["P1","P2","P3","P4"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]},
+    {"session":6,"condition":"A","opening":"classic","seats":["P2","P3","P4","P1"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]},
+    {"session":7,"condition":"A","opening":"classic","seats":["P3","P4","P1","P2"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]},
+    {"session":8,"condition":"B","opening":"comp-60","seats":["P4","P1","P2","P3"],"completed":null,"traceFile":null,"reasonInterrupted":null,"participantResponses":[]}
+  ],
+  "note": "Cette fiche ne constitue pas une preuve de participation humaine. Ne pas saisir de noms."
+}
