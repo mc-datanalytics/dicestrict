@@ -111,6 +111,14 @@ async def main():
             await m.locator('#momentum').scroll_into_view_if_needed();assert await m.locator('#momentum').is_visible()
             await m.screenshot(path=str(OUT/'engagement-mobile.png'),full_page=True)
             counts['mobile']=dims
+            # Offer controls can wrap to two rows. They must stay above the cap.
+            await evaluate(m,FIXTURE+"s.turn=1;app.accept(applyAction(s,'nova',{type:'OFFER_DEAL',to:'you',giveTiles:[2],takeTiles:[4],giveCash:20,takeCash:0}));")
+            layout=await m.evaluate("({dockBottom:document.querySelector('#dock').getBoundingClientRect().bottom,goalTop:document.querySelector('#momentum').getBoundingClientRect().top,body:document.documentElement.scrollWidth,width:innerWidth})")
+            assert layout['dockBottom']+5<=layout['goalTop'],layout
+            assert layout['body']<=layout['width'],layout
+            assert await m.locator('[data-ui=defer-offer]').is_visible()
+            await m.screenshot(path=str(OUT/'engagement-mobile-offer.png'),full_page=True)
+            counts['mobileOffer']=layout
             checks.append('390px touch layout contains the actual WebGL2 canvas, goals and actions without horizontal overflow')
             # Standalone must not depend on externally hosted scripts or assets.
             off=await browser.new_context(viewport={'width':1280,'height':900});requests=[]

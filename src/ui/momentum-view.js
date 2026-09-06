@@ -3,6 +3,7 @@ import { rentFor, netWorth } from '../game/engine.js';
 import { escapeHTML as esc, icon } from './icons.js';
 import { districtStatus, publicRace, reciprocalOpportunity, developmentOpportunity, incomingOffers, currentMilestones } from './momentum.js';
 const money=n=>new Intl.NumberFormat('fr-FR').format(n);
+const viewCache=new WeakMap();
 function raceCopy(race){
   if(race.bankrupt)return 'Faillite · vous pouvez suivre la fin de partie.';
   if(race.sharedLead)return 'Égalité en tête · rien n’est encore joué.';
@@ -46,7 +47,7 @@ function renderMomentum(app){
     <div class="momentum-race"><strong>${race.bankrupt?'Éliminé':`${race.rank}${race.rank===1?'er':'e'}${race.tied?' ex æquo':''}`} · ${money(netWorth(s,id))} ₡</strong><small>${esc(raceCopy(race))}</small></div>
     ${last?`<button class="momentum-memory" data-ui="story">${icon('star',12)}<span>${esc(last.title)}</span></button>`:''}`;
   // Preserve focus on a prepared draft/CTA through identical network redraws.
-  if(node.innerHTML!==markup)node.innerHTML=markup;
+  if(viewCache.get(node)!==markup){node.innerHTML=markup;viewCache.set(node,markup);}
 }
 function storyMarkup(app){
   const s=app.state,id=app.localId,story=app.story?.gameId===s.id?app.story:null;
