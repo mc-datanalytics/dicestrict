@@ -66,6 +66,13 @@ function casino(lod){
       for(const zz of [-.25,.25])g.box([x,h+.27,z+zz],[.34,.07,.095],C.dark,M.foliage,.015);
     }
   }
+  // Close the exposed hall sides above the lower wings with recessed clerestories.
+  // The first studio capture exposed an open strip here, not intentional dark glazing.
+  for(const sign of [-1,1]){
+    g.box([sign*.515,.895,-.075],[.014,.18,.83],C.glass,M.glass);
+    for(const z of [-.48,-.21,.06,.33])g.box([sign*.526,.895,z],[.038,.19,.025],C.light,M.stone);
+    for(const y of [.808,.983])g.box([sign*.525,y,-.075],[.042,.024,.86],C.stone,M.stone);
+  }
   // Eight-sided lantern: visible glazing between ribs, zinc facets and cap.
   const drum=octagon(.84,.77,.15);
   g.prism(drum.map(([x,z])=>[x,z-.075]),1.015,1.055,C.stone,M.stone);

@@ -25,7 +25,7 @@ test('static civic batching has two cached LODs, no time/state rebuild and force
  const live=new Set(),r={mesh(g){const m={count:g.indices.length,bytes:g.data.byteLength+g.indices.byteLength};live.add(m);return m;},drop(m){live.delete(m);}};
  const c=new CivicCenter(r);assert.equal(c.builds,1);assert.equal(c.objects().length,1);c.selectDetail(70);assert.equal(c.detail,'high');assert.equal(c.builds,2);
  for(let i=0;i<100;i++){c.selectDetail(60);c.objects(i);c.configure({reduced:true,living:false});}assert.equal(c.builds,2);
- c.selectDetail(40);c.selectDetail(80);assert.equal(c.builds,2);c.configure({quality:'low'});c.selectDetail(200);assert.equal(c.detail,'low');assert.equal(c.objects()[0].mesh.count/3,7816);c.destroy();assert.equal(live.size,0);
+ c.selectDetail(40);c.selectDetail(80);assert.equal(c.builds,2);c.configure({quality:'low'});c.selectDetail(200);assert.equal(c.detail,'low');assert.equal(c.objects()[0].mesh.count/3,7984);c.destroy();assert.equal(live.size,0);
 });
 test('start/middle/late snapshots replay from real rules; no artificial startup wealth',()=>{
  const f=civicFixtures(),again=civicFixtures();assert.deepEqual(f,again);let s=f.initial;
