@@ -4,6 +4,8 @@ import { Geometry } from "./geometry.js";
 import { Renderer } from "./webgl.js";
 import { identity,model,multiply,ortho,lookAt,inverse,transform,lerp,smooth } from "./math.js";
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+// Toggling reduced motion mid-move must snap to the destination, not freeze a pawn.
+const motionProgress=(path,t,reduced)=>reduced||!path.duration?1:clamp((t-path.start)/path.duration,0,1);
 function atlas(){
   const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=1024;const c=canvas.getContext('2d');
   for(const t of BOARD){const x=t.id%8*256,y=Math.floor(t.id/8)*256;c.save();c.translate(x,y);
@@ -54,7 +56,10 @@ class BoardScene {
     canvas.addEventListener('pointerup',e=>{if(pointer&&!pointer.moved)this.pick(e.clientX,e.clientY);pointer=null;},opts);
     canvas.addEventListener('pointercancel',()=>{pointer=null;},opts);
     canvas.addEventListener('wheel',e=>{e.preventDefault();this.zoom=clamp(this.zoom*(e.deltaY>0?.96:1.04),.72,1.5);this.dirty=true;},{...opts,passive:false});
-    this.resizeObserver=new ResizeObserver(()=>{this.dirty=true;});this.resizeObserver.observe(canvas);
+    this.resizeObserver=new ResizeObserver(entries=>{const rect=entries[0]?.contentRect;
+      if(rect&&(rect.width!==this.cssWidth||rect.height!==this.cssHeight)){this.cssWidth=rect.width;this.cssHeight=rect.height;this.dirty=true;}
+    });this.resizeObserver.observe(canvas);
+    document.addEventListener('visibilitychange',()=>{this.lastAmbientFrame=null;if(!document.hidden)this.dirty=true;},opts);
     const loop=t=>{if(this.lost)return;this.render(t);this.raf=requestAnimationFrame(loop);};this.raf=requestAnimationFrame(loop);
   }
   configure(settings={}){
@@ -111,7 +116,7 @@ class BoardScene {
     this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,[0,.3,0]));
     const objects=[{mesh:this.staticMesh,model:identity()},...this.city.objects(this.ambientTime,this.renderer.weather)];if(this.ownerMesh)objects.push({mesh:this.ownerMesh});
     if(this.state)for(let i=0;i<this.state.players.length;i++){
-      const p=this.state.players[i];if(p.bankrupt)continue;const path=this.paths[i],progress=path.duration?clamp((t-path.start)/path.duration,0,1):1,total=progress*path.steps,step=Math.floor(total),fraction=total-step;
+      const p=this.state.players[i];if(p.bankrupt)continue;const path=this.paths[i],progress=motionProgress(path,t,this.reduced),total=progress*path.steps,step=Math.floor(total),fraction=total-step;
       const from=tilePosition((path.from+step)%28),to=tilePosition((path.from+step+1)%28),x=lerp(from[0],to[0],smooth(fraction)),z=lerp(from[1],to[1],smooth(fraction));
       const offset=[[-.26,-.19],[.26,-.19],[-.26,.24],[.26,.24]][i],jump=progress<1?Math.sin(fraction*Math.PI)*.32:0;
       objects.push({mesh:this.tokens[i],model:model(x+offset[0],.535+jump,z+offset[1],0,-.2,0,1)});
@@ -125,4 +130,4 @@ class BoardScene {
   destroy(){cancelAnimationFrame(this.raf);this.abort.abort();this.resizeObserver.disconnect();this.renderer.destroy();}
 }
 
-export { BoardScene };
+export { BoardScene, motionProgress };

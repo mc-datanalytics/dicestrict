@@ -1,7 +1,7 @@
 name: DICESTRICT quality
 on:
   push:
-    paths: ['src/**', 'scripts/**', 'tests/**', 'config.js', 'index.html', 'package.json']
+    paths: ['src/**', 'scripts/**', 'tests/**', 'config.js', 'index.html', 'lab.html', 'package.json', '.github/workflows/ci.yml']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -22,6 +22,11 @@ jobs:
       - run: pip install playwright==1.57.0
       - run: python -m playwright install --with-deps chromium
       - run: python tests/browser.py
+      - run: npm run build:lab
+      - run: python tests/lab_browser.py
+      - name: Capture exact sources
+        if: always()
+        run: git archive --format=tar -o source.tar HEAD
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -29,4 +34,5 @@ jobs:
           path: |
             dist/
             test-results/
+            source.tar
           retention-days: 14
