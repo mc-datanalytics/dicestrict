@@ -1,0 +1,36 @@
+name: Engagement UI refinement
+on:
+  push:
+    branches: ['feat/engagement-rhythm-0-7']
+    paths: ['.github/workflows/engagement-refine.yml']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Apply exact reviewed deltas
+        run: |
+          python - <<'PY'
+          import pathlib,hashlib,json
+          patches=json.loads(r'''{"src/ui/momentum-view.js":{"before":"c65075afd1cfd9b07ee06d9ac5a3b8f5207556c31f4b3fdd224ae060cbb60b30","after":"3ca3566623dc2fd6becf76c703527371f0f8864e4d00a935826e1163b335ae31","edits":[[355,355,");\nconst viewCache=new WeakMap("],[4358,4358,"viewCache.get("],[4362,4372,")"],[4382,4382,"{"],[4404,4404,"viewCache.set(node,markup);}"]]},"src/ui/styles.css":{"before":"7ee809fa73e94ff1d91f51165847ebd672bae7156d850f62f51dce78c48727b7","after":"ca8e11a249eabddd608a8520cddcbd3f5184ad931548a2d372f07633b4879574","edits":[[34571,34571,"\n/* Variable-height mobile actions stay in flow: an incoming offer may need\n   two rows; it must never cover the next-goal card. */\n@media(max-width:700px){.action-dock{position:relative;top:auto;bottom:auto;left:auto;right:auto;order:1;margin:346px 12px 0}.momentum{margin:15px 12px;order:2}}\n"]]},"tests/engagement_browser.py":{"before":"47236789332308f871a8d77f3e4d6001bca755b346e88b0fd583455ccfbc8fcd","after":"4a3e0b907967b9631252c1822cb2da9ec043b46b4f8205941a25245f9e128db5","edits":[[9912,9912,"# Offer controls can wrap to two rows. They must stay above the cap.\n            await evaluate(m,FIXTURE+\"s.turn=1;app.accept(applyAction(s,'nova',{type:'OFFER_DEAL',to:'you',giveTiles:[2],takeTiles:[4],giveCash:20,takeCash:0}));\")\n            layout=await m.evaluate(\"({dockBottom:document.querySelector('#dock').getBoundingClientRect().bottom,goalTop:document.querySelector('#momentum').getBoundingClientRect().top,body:document.documentElement.scrollWidth,width:innerWidth})\")\n            assert layout['dockBottom']+5<=layout['goalTop'],layout\n            assert layout['body']<=layout['width'],layout\n            assert await m.locator('[data-ui=defer-offer]').is_visible()\n            await m.screenshot(path=str(OUT/'engagement-mobile-offer.png'),full_page=True)\n            counts['mobileOffer']=layout\n            "]]}}''')
+          sha=lambda s:hashlib.sha256(s.encode()).hexdigest()
+          for name,p in patches.items():
+              file=pathlib.Path(name);s=file.read_text();assert sha(s)==p['before'],name
+              for start,end,text in reversed(p['edits']):s=s[:start]+text+s[end:]
+              assert sha(s)==p['after'],name
+              file.write_text(s);print('Verified',name)
+          PY
+      - run: npm run check && npm test && npm run build:lab
+      - name: Publish plain source
+        run: |
+          git add src/ui/momentum-view.js src/ui/styles.css tests/engagement_browser.py
+          git -c user.name='M&G Group' -c user.email='119437439+mc-datanalytics@users.noreply.github.com' commit -m 'fix: cache original guidance markup for keyboard focus and flow mobile offer actions'
+          git push origin HEAD:refs/heads/feat/engagement-rhythm-0-7
