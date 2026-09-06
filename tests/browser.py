@@ -209,6 +209,7 @@ async def main():
             await host_ctx.close()
             await guest.wait_for_function("document.querySelector('.connection-error')!==null",timeout=30000)
             checks.append('Host departure suspends the remaining client instead of fabricating a win')
+            await guest_ctx.close()
             mobile=await browser.new_page(viewport={'width':390,'height':844},device_scale_factor=1,is_mobile=True,has_touch=True)
             await setup(mobile);assert await mobile.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
             await mobile.screenshot(path=str(OUT/'mobile.png'),full_page=True)
@@ -230,6 +231,7 @@ async def main():
             assert await mobile.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
             await mobile.screenshot(path=str(OUT/'casino-mobile.png'),full_page=True)
             checks.append('Casino disclosure and controls fit a 390px touch viewport without horizontal overflow')
+            await mobile.close()  # Finished fixture: release its software WebGL context.
             # Also execute the generated standalone artifact, not only native source modules.
             offline=await browser.new_page(viewport={'width':1440,'height':960})
             offline.on('pageerror',lambda e: errors.append(str(e)))
@@ -245,10 +247,12 @@ async def main():
             await offline.locator('[data-ui="casino"]').click()
             assert await offline.locator('#casino-form').is_visible()
             checks.append('Standalone HTML includes the living city and the casino without external assets')
+            await offline.close()
             fallback=await browser.new_page()
             await fallback.add_init_script("const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return type==='webgl2'?null:original.call(this,type,...args)}")
             await fallback.goto(URL);await fallback.locator('.fallback-grid').wait_for()
             await fallback.locator('[data-game="ROLL"]').click();checks.append('Accessible fallback remains playable without WebGL')
+            await fallback.close()
             # Lifecycle fixtures: these check UI/recording scope, not human outcomes.
             audit=await browser.new_page(viewport={'width':1360,'height':960})
             audit.on('pageerror',lambda e: errors.append(str(e)))
