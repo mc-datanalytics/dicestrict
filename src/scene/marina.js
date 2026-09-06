@@ -16,7 +16,6 @@ const LAYOUT=Object.freeze([
   ['lantern',[-1.40,.484,.587],0,1],['lantern',[-.827,.484,2.51],Math.PI,1],
   ['lantern',[-2.06,.484,3.294],-Math.PI/2,1],
   ['bench',[-3.17,.515,2.06],Math.PI/2,1],['bench',[-.798,.515,1.98],-Math.PI/2,1],
-  ['bench',[-2.68,.515,3.297],Math.PI,1],
   ['cafe',[-1.395,.521,.668],0,1],['parasol',[-1.395,.521,.668],0,1],
   ['cafe',[-2.57,.522,3.20],Math.PI/2,.88],
   ['palm',[-3.105,.51,.695],0,.77],['palm',[-3.07,.51,3.28],.8,.92],['palm',[-.72,.51,.66],.7,.85],
@@ -41,6 +40,17 @@ function environment(lod) {
     const a=[-2.04,.579,z],b=[-1.745,.575,z+.065],middle=[(a[0]+b[0])/2,.529,(a[2]+b[2])/2];
     g.rod(a,middle,.0048,'#c7bda2',M.canvas,5);g.rod(middle,b,.0048,'#c7bda2',M.canvas,5);
   }
+  // Recessed waterside threshold joins the retained house to the existing quay.
+  // No road, property, dice plaza or basin boundary moves.
+  g.box([-2.25,.511,.829],[1.14,.042,.14],'#d8c6a3',M.stone,.009);
+  for(let i=0;i<3;i++)g.box([-2.25,.531+i*.020,.790-i*.045],[.45,.025,.069],P.ivory,M.stone,.004);
+  // Stone coping and timber rub rail make the waterline legible at normal zoom.
+  g.box([-2.965,.497,2.02],[.027,.036,2.20],P.ivory,M.stone,.005);
+  g.box([-1.027,.489,1.86],[.032,.042,1.82],'#967047',M.teak,.005);
+  for(const z of [1.19,1.94,2.70]){
+    g.rod([-2.936,.37,z],[-2.936,.514,z],.020,'#7c6954',M.teak,lod==='low'?6:8);
+    g.box([-2.932,.451,z],[.049,.10,.078],'#354f54',M.paint,.006);
+  }
   return g.build(`marina-furniture-batch-${lod}`);
 }
 function ownershipFlag() {
@@ -52,7 +62,7 @@ function ownershipFlag() {
 class Marina {
   constructor(renderer) {
     this.renderer=renderer;this.cache=new Map();this.city=null;this.detail='low';this.quality='high';this.reduced=false;this.living=true;
-    this.builds=0;this.stateUpdates=0;this.renderer.harborLights=HARBOR_LIGHTS;
+    this.builds=0;this.stateUpdates=0;this.renderer.harborLights=HARBOR_LIGHTS;this.renderer.waterfrontLights=HARBOR_LIGHTS;
     this.water=this.upload('water',waterGeometry());this.flag=this.upload('flag',ownershipFlag());
     this.ensureEnvironment();
   }
@@ -88,13 +98,14 @@ class Marina {
   }
   objects(seconds=0) {
     const moving=this.living&&!this.reduced,t=moving?seconds:0;
-    const out=[{mesh:this.water,noShadow:true},{mesh:this.environment},{mesh:this.house,model:model(-2.25,.483,.420)},
-      {mesh:this.yacht,model:model(-2.262,WATERLINE+Math.sin(t*.72)*.004,1.958,.002*Math.sin(t*.71),.037,.003*Math.sin(t*.47))},
+    const out=[{mesh:this.water,noShadow:true,waterfrontWater:true},{mesh:this.environment},{mesh:this.house,model:model(-2.25,.483,.355,0,0,0,1.18)},
+      {mesh:this.yacht,model:model(-2.31,WATERLINE+Math.sin(t*.72)*.004,2.005,.002*Math.sin(t*.71),-.10,.003*Math.sin(t*.47),1.10)},
       {mesh:this.launch,model:model(-1.205,WATERLINE+Math.sin(t*.84+1)*.004,1.428,0,-.019,.006*Math.sin(t*.84+1))},
       {mesh:this.launch,model:model(-1.203,WATERLINE+Math.sin(t*.75+2)*.004,2.378,0,Math.PI-.032,.006*Math.sin(t*.75+2),.84)},
     ];
     for(const p of this.parcels??[])out.push({mesh:p.mesh,model:p.model,closed:p.closed},{mesh:this.flag,model:p.flagModel,tint:p.tint});
     this.stats={detail:this.detail,objects:out.length,triangles:out.reduce((n,o)=>n+o.mesh.count/3,0),cachedGpuBytes:[...this.cache.values()].reduce((n,m)=>n+(m.bytes??0),0),builds:this.builds,stateUpdates:this.stateUpdates};
+    for(const o of out)o.waterfront=true;
     return out;
   }
   destroy(){for(const mesh of this.cache.values())this.renderer.drop(mesh);this.cache.clear();}

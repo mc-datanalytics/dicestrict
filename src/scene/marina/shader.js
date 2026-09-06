@@ -1,3 +1,4 @@
+import { WATERFRONT_FRAGMENT } from './finish.js';
 /** Shared, single-pass marina surface model. No bloom, SSR, transparent sorting or blur.
  * Water/sky reflections are stylised analytic approximations, not ray tracing.
  */
@@ -5,6 +6,7 @@ const MARINA_FRAGMENT=`
 uniform sampler2D uSurface;
 uniform vec3 uCamera; uniform vec3 uObjectTint; uniform float uClosed; uniform float uStudio;
 uniform vec3 uHarborLights[4];
+${WATERFRONT_FRAGMENT}
 vec3 marinaShade(vec3 color, vec3 normal, float diffuse, float shadow) {
   int material=int(vTex+.5);vec3 n=normal;vec3 v=normalize(uCamera-vWorld);
   float night=uStudio>.5?0.:uNight;float dusk=uStudio>.5?0.:uDusk;float lamps=max(night,dusk*.58);
@@ -22,6 +24,7 @@ vec3 marinaShade(vec3 color, vec3 normal, float diffuse, float shadow) {
     if(material==5)color=mix(color,vec3(.22,.36,.40),.3);
     return color*(.39+.61*diffuse*(1.-shadow*.70));
   }
+  if(uWaterfront>.5)return waterfrontFinish(color,normal,diffuse,shadow,material);
   vec3 sun=normalize(vec3(-.5,.9,.55));
   if(material==9) {
     float a=vWorld.x*33.+vWorld.z*23.+uTime*1.35,b=vWorld.x*16.-vWorld.z*27.+uTime*.94;

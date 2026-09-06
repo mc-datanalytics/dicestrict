@@ -1,0 +1,43 @@
+name: Waterfront artistic checkpoint
+on:
+  push:
+    branches: [feat/city-harmony-phase4]
+    paths: ['src/scene/**', 'scripts/assets/**', 'tests/waterfront*', '.github/workflows/waterfront-quality.yml']
+  pull_request:
+    paths: ['src/scene/**', 'scripts/assets/**', 'tests/waterfront*', '.github/workflows/waterfront-quality.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  waterfront:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with: {fetch-depth: 0}
+      - uses: actions/setup-node@v6
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - run: npm run check && npm test && npm run build
+      - run: npm run assets:export && node scripts/assets/export-civic.mjs && node scripts/assets/export-harmony.mjs && node scripts/assets/export-waterfront.mjs && npm run assets:review
+      - run: pip install playwright==1.57.0 && python -m playwright install --with-deps chromium
+      - name: Exact pre-checkpoint source, no hidden-objects substitute
+        run: |
+          mkdir -p test-results/waterfront-baseline
+          git archive 966b2008a8507e077f2d60efc5385ecae0f14a1a | tar -x -C test-results/waterfront-baseline
+      - run: python -u tests/waterfront_browser.py
+        timeout-minutes: 10
+      - name: Exact tested source
+        if: always()
+        run: git archive --format=tar -o source.tar HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: waterfront-checkpoint-evidence
+          path: |
+            source.tar
+            dist/
+            assets/
+            test-results/waterfront/
+          retention-days: 14

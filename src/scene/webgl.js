@@ -1,3 +1,4 @@
+import { WaterfrontReflection } from './marina/reflection.js';
 import { surfaceAtlas } from './marina/surfaces.js';
 import { MARINA_FRAGMENT } from './marina/shader.js';
 import { identity, multiply, lookAt, ortho } from "./math.js";
@@ -13,7 +14,7 @@ precision highp float;
 in vec3 vWorld;in vec3 vNormal;in vec3 vColor;in vec2 vUv;in float vTex;in vec4 vShadow;
 uniform float uNight;uniform float uDusk;uniform float uWeather;uniform float uTime;uniform sampler2D uAtlas;uniform sampler2D uShadow;uniform float uUseShadow;out vec4 frag;
 ${MARINA_FRAGMENT}
-void main(){vec3 base=vColor; if(vTex>.5&&vTex<1.5){vec4 t=texture(uAtlas,vUv);base=mix(base,t.rgb,t.a);}
+void main(){if(uReflectionPass>.5&&vWorld.y<.428)discard;vec3 base=vColor; if(vTex>.5&&vTex<1.5){vec4 t=texture(uAtlas,vUv);base=mix(base,t.rgb,t.a);}
  vec3 n=normalize(vNormal);float diffuse=max(dot(n,normalize(vec3(-.5,.9,.55))),0.);
  vec3 p=vShadow.xyz/vShadow.w*.5+.5;float shadow=0.;
  if(uUseShadow>.5&&p.x>0.&&p.x<1.&&p.y>0.&&p.y<1.&&p.z<1.){
@@ -51,10 +52,10 @@ class Renderer {
     this.gl=gl;this.canvas=canvas;this.atlasSource=atlas;this.meshes=new Set();this.uniforms=new Map();
     this._shadows=true;this.lost=false;this.meshUploads=0;this.meshDrops=0;this.restoreCount=0;
     this.light=multiply(ortho(-12,12,-12,12,.1,60),lookAt([-10,21,13],[0,0,0]));
-    this.initializeGPU();
+    this.reflections=new WaterfrontReflection(this);this.initializeGPU();
     this.abort=new AbortController();const opts={signal:this.abort.signal};
     canvas.addEventListener('webglcontextlost',e=>{
-      e.preventDefault();this.lost=true;this.shadow=null;this.fb=null;this.shadowOK=false;
+      e.preventDefault();this.lost=true;this.reflections.forget();this.reflections.memory();this.shadow=null;this.fb=null;this.shadowOK=false;
       this.textureBytes.shadowDepth24StorageUpperBound=0;
       this.stats={...this.stats,contextLost:true,gpuBufferBytes:0,drawCalls:0,shadowDrawCalls:0};
     },opts);
@@ -64,6 +65,7 @@ class Renderer {
     },opts);
   }
   initializeGPU(){
+    this.reflections.forget();
     const gl=this.gl,atlas=this.atlasSource;this.p=program(gl,VERT,FRAG);this.dp=program(gl,DEPTHVERT,DEPTHFRAG);this.uniforms.clear();
     gl.activeTexture(gl.TEXTURE0);
     this.atlas=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,this.atlas);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
@@ -73,6 +75,7 @@ class Renderer {
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,surface.width,surface.height,0,gl.RGBA,gl.UNSIGNED_BYTE,surface.data);gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
     this.textureBytes={boardAtlasMipmapped:Math.round(atlas.width*atlas.height*4*4/3),surfaceAtlasMipmapped:Math.round(surface.width*surface.height*4*4/3),shadowDepth24StorageUpperBound:0};
+    this.reflections.memory();
     // No shadow allocation at construction or in low mode. A complete colour texture is
     // bound to the inactive depth sampler; no incomplete-texture warnings on mobile GL.
     this.shadow=null;this.fb=null;this.shadowOK=false;this.shadowFailed=false;
@@ -80,7 +83,7 @@ class Renderer {
     this.defaultFramebufferConfig={depthBits:gl.getParameter(gl.DEPTH_BITS),samples:gl.getParameter(gl.SAMPLES),driverAllocationUnknown:true};
   }
   get shadows(){return this._shadows;}
-  set shadows(value){this._shadows=Boolean(value);if(!this._shadows)this.releaseShadow();}
+  set shadows(value){this._shadows=Boolean(value);if(!this._shadows){this.releaseShadow();this.reflections?.release();}}
   releaseShadow(){
     const gl=this.gl;
     if(this.shadow)gl.deleteTexture(this.shadow);if(this.fb)gl.deleteFramebuffer(this.fb);
@@ -120,25 +123,28 @@ class Renderer {
     mesh.sourceData=null;mesh.sourceIndices=null;this.meshes.delete(mesh);this.meshDrops++;
   }
   uniform(p,name){const key=(p===this.p?'p:':'d:')+name;if(!this.uniforms.has(key))this.uniforms.set(key,this.gl.getUniformLocation(p,name));return this.uniforms.get(key);}
-  pass(p,vp,objects){const gl=this.gl;gl.useProgram(p);gl.uniformMatrix4fv(this.uniform(p,'uVP'),false,vp);
-    if(p===this.p){gl.uniform1f(this.uniform(p,'uNight'),this.night??0);gl.uniform1f(this.uniform(p,'uDusk'),this.dusk??0);gl.uniform1f(this.uniform(p,'uWeather'),this.weather??0);gl.uniform1f(this.uniform(p,'uTime'),this.ambientTime??0);gl.uniformMatrix4fv(this.uniform(p,'uLight'),false,this.light);gl.uniform1f(this.uniform(p,'uUseShadow'),this.shadows&&this.shadowOK?1:0);
+  pass(p,vp,objects,reflection=false){const gl=this.gl;gl.useProgram(p);gl.uniformMatrix4fv(this.uniform(p,'uVP'),false,vp);
+    if(p===this.p){gl.uniform1f(this.uniform(p,'uNight'),this.night??0);gl.uniform1f(this.uniform(p,'uDusk'),this.dusk??0);gl.uniform1f(this.uniform(p,'uWeather'),this.weather??0);gl.uniform1f(this.uniform(p,'uTime'),this.ambientTime??0);gl.uniformMatrix4fv(this.uniform(p,'uLight'),false,this.light);gl.uniform1f(this.uniform(p,'uUseShadow'),this.shadows&&this.shadowOK&&!reflection?1:0);
       gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.atlas);gl.uniform1i(this.uniform(p,'uAtlas'),0);
       gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.shadow??this.atlas);gl.uniform1i(this.uniform(p,'uShadow'),1);
       gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,this.surface);gl.uniform1i(this.uniform(p,'uSurface'),2);
-      gl.uniform3fv(this.uniform(p,'uCamera'),this.camera??[10,18,20]);gl.uniform1f(this.uniform(p,'uStudio'),this.studio?1:0);
+      const camera=this.camera??[10,18,20];gl.uniform3fv(this.uniform(p,'uCamera'),reflection?[camera[0],.854-camera[1],camera[2]]:camera);
+      gl.uniform1f(this.uniform(p,'uReflectionPass'),reflection?1:0);gl.uniform1f(this.uniform(p,'uUseReflection'),!reflection&&this.reflections.ready?1:0);gl.uniformMatrix4fv(this.uniform(p,'uReflectionProject'),false,this.reflections.project);
+      gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,reflection?this.atlas:(this.reflections.texture??this.atlas));gl.uniform1i(this.uniform(p,'uWaterReflection'),3);gl.uniform1f(this.uniform(p,'uStudio'),this.studio?1:0);
       gl.uniform3fv(this.uniform(p,'uHarborLights[0]'),this.harborLights??new Float32Array(12));}
     for(const o of objects){if(p===this.dp&&o.noShadow)continue;gl.uniformMatrix4fv(this.uniform(p,'uModel'),false,o.model??identity());gl.bindVertexArray(o.mesh.vao);
-      if(p===this.p){gl.uniform3fv(this.uniform(p,'uObjectTint'),o.tint??[1,1,1]);gl.uniform1f(this.uniform(p,'uClosed'),o.closed??0);}
+      if(p===this.p){gl.uniform3fv(this.uniform(p,'uObjectTint'),o.tint??[1,1,1]);gl.uniform1f(this.uniform(p,'uClosed'),o.closed??0);gl.uniform1f(this.uniform(p,'uWaterfront'),o.waterfront?1:0);gl.uniform3fv(this.uniform(p,'uHarborLights[0]'),(o.waterfront?this.waterfrontLights:this.harborLights)??new Float32Array(12));}
       if(o.mesh.indexBuffer)gl.drawElements(gl.TRIANGLES,o.mesh.count,o.mesh.indexType,0);else gl.drawArrays(gl.TRIANGLES,0,o.mesh.count);
-      if(p===this.dp){this.stats.shadowDrawCalls++;this.stats.shadowTriangles+=o.mesh.count/3;}else{this.stats.drawCalls++;this.stats.triangles+=o.mesh.count/3;}}
+      if(p===this.dp){this.stats.shadowDrawCalls++;this.stats.shadowTriangles+=o.mesh.count/3;}else if(reflection){this.stats.reflectionDrawCalls++;this.stats.reflectionTriangles+=o.mesh.count/3;}else{this.stats.drawCalls++;this.stats.triangles+=o.mesh.count/3;}}
   }
   render(vp,objects){if(this.lost||this.gl.isContextLost())return;this.ensureShadow();const gl=this.gl,start=performance.now();
-    this.stats={drawCalls:0,shadowDrawCalls:0,triangles:0,shadowTriangles:0,gpuBufferBytes:[...this.meshes].reduce((n,m)=>n+m.bytes,0),meshUploads:this.meshUploads,meshDrops:this.meshDrops,cpuRetainedGeometryBytes:[...this.meshes].reduce((n,m)=>n+m.bytes,0),restoreCount:this.restoreCount,textureBytes:{...this.textureBytes},defaultFramebuffer:{pixels:this.canvas.width*this.canvas.height,rgba8SingleSampleLowerBound:this.canvas.width*this.canvas.height*4,...this.defaultFramebufferConfig},meshes:this.meshes.size,width:this.canvas.width,height:this.canvas.height};
+    this.stats={drawCalls:0,shadowDrawCalls:0,triangles:0,shadowTriangles:0,reflectionDrawCalls:0,reflectionTriangles:0,reflectionPasses:0,gpuBufferBytes:[...this.meshes].reduce((n,m)=>n+m.bytes,0),meshUploads:this.meshUploads,meshDrops:this.meshDrops,cpuRetainedGeometryBytes:[...this.meshes].reduce((n,m)=>n+m.bytes,0),restoreCount:this.restoreCount,textureBytes:{...this.textureBytes},defaultFramebuffer:{pixels:this.canvas.width*this.canvas.height,rgba8SingleSampleLowerBound:this.canvas.width*this.canvas.height*4,...this.defaultFramebufferConfig},meshes:this.meshes.size,width:this.canvas.width,height:this.canvas.height};
     if(this.shadows&&this.shadowOK){gl.bindFramebuffer(gl.FRAMEBUFFER,this.fb);gl.viewport(0,0,2048,2048);gl.clear(gl.DEPTH_BUFFER_BIT);gl.enable(gl.POLYGON_OFFSET_FILL);gl.polygonOffset(1,2);this.pass(this.dp,this.light,objects);gl.disable(gl.POLYGON_OFFSET_FILL);}
+    this.reflections.render(vp,objects);this.stats.textureBytes={...this.textureBytes};
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,this.canvas.width,this.canvas.height);const night=this.night??0;gl.clearColor(.955-night*.55,.95-night*.49,.924-night*.37,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);this.pass(this.p,vp,objects);this.stats.cpuSubmitMs=performance.now()-start;
   }
   resize(w,h,dpr=1){const width=Math.max(1,Math.round(w*dpr)),height=Math.max(1,Math.round(h*dpr));if(this.canvas.width!==width||this.canvas.height!==height){this.canvas.width=width;this.canvas.height=height;}}
-  destroy(){this.abort.abort();for(const mesh of [...this.meshes])this.drop(mesh);const gl=this.gl;gl.deleteProgram(this.p);gl.deleteProgram(this.dp);gl.deleteTexture(this.atlas);gl.deleteTexture(this.surface);gl.deleteTexture(this.shadow);gl.deleteFramebuffer(this.fb);}
+  destroy(){this.abort.abort();this.reflections.release();for(const mesh of [...this.meshes])this.drop(mesh);const gl=this.gl;gl.deleteProgram(this.p);gl.deleteProgram(this.dp);gl.deleteTexture(this.atlas);gl.deleteTexture(this.surface);gl.deleteTexture(this.shadow);gl.deleteFramebuffer(this.fb);}
 }
 
 export { Renderer };
