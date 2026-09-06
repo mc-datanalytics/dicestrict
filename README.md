@@ -53,7 +53,7 @@ Les sauvegardes et le réseau utilisent le schéma v4 depuis 0.4. Les anciennes 
 
 ## Validation
 
-**80 tests Node**, plus deux suites navigateur distinctes. Les résultats réellement vérifiés, environnements et limites sont dans [VALIDATION.md](docs/VALIDATION.md). Les artefacts GitHub Actions contiennent les captures, rapports, sources exactes et builds ; un artefact peut également exister après un échec, donc vérifier la conclusion du run.
+**83 tests Node**, plus deux suites navigateur distinctes. Les résultats réellement vérifiés, environnements et limites sont dans [VALIDATION.md](docs/VALIDATION.md). Les artefacts GitHub Actions contiennent les captures, rapports, sources exactes et builds ; un artefact peut également exister après un échec, donc vérifier la conclusion du run.
 
 ```sh
 npm run check && npm test && npm run build
