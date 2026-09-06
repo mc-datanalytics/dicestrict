@@ -1,3 +1,4 @@
+import { Harmony, HARMONY_LOTS } from './harmony.js';
 import { CivicCenter } from './civic.js';
 import { Districts, DISTRICT_LOTS } from './districts.js';
 import { Marina, MARINA_LOTS } from './marina.js';
@@ -42,7 +43,7 @@ function terrace(g,x,z,color) {
 function parcelGeometry(city,legacyDistricts=false) {
   const g=new Geometry();
   for(const p of city.parcels) {
-    if(!legacyDistricts&&DISTRICT_LOTS.includes(p.id))continue;
+    if(HARMONY_LOTS.includes(p.id)||!legacyDistricts&&DISTRICT_LOTS.includes(p.id))continue;
     const {x,z}=p;
     g.box([x,.43,z],[.96,.09,.95],p.owner?'#d7dfcc':'#a8c8a8',.045);
     if(!p.owner) {
@@ -132,7 +133,7 @@ function crane() {
 class LivingCity {
   constructor(renderer) {
     this.renderer=renderer;this.city=null;this.elapsed=0;this.cranes=[];this.celebrations=[];this.quality='high';this.reduced=false;this.living=true;
-    this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);this.civic=new CivicCenter(renderer);
+    this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);this.civic=new CivicCenter(renderer);this.harmony=new Harmony(renderer);
     this.cars=['#db947e','#e0c477','#79b2bb','#e6e3d5'].map(c=>renderer.mesh(vehicle(c)));
     this.bus=renderer.mesh(vehicle('#dcb875','bus'));this.ambulance=renderer.mesh(vehicle('#f1f1df'));
     this.people=['#567d77','#de917b','#b5a2ce','#d9b16b'].map(c=>renderer.mesh(person(c)));
@@ -142,12 +143,12 @@ class LivingCity {
     const water=new Geometry();water.sphere([0,0,0],.028,'#c2e6dc',6,4);this.water=renderer.mesh(water);
     const siren=new Geometry();siren.material=3;siren.block([0,0,0],[.12,.04,.06],'#88cfe5');this.siren=renderer.mesh(siren);
   }
-  configure(settings) { this.civic.configure(settings);this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
+  configure(settings) { this.harmony.configure(settings);this.civic.configure(settings);this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
   setState(s) {
     const next=deriveCity(s),reset=this.gameId!==s.id;
     if(!reset&&this.city?.signature===next.signature)return;
     const changes=cityTransitions(reset?null:this.city,next);
-    this.gameId=s.id;this.city=next;this.marina.setCity(next);this.districts.setCity(next);
+    this.gameId=s.id;this.city=next;this.marina.setCity(next);this.districts.setCity(next);this.harmony.setCity(next);
     if(reset){this.cranes=[];this.celebrations=[];}
     if(!this.reduced&&this.living) {
       for(const p of changes.construction)this.cranes.push({id:p.id,x:p.x,z:p.z,until:this.elapsed+6});
@@ -158,7 +159,7 @@ class LivingCity {
   }
   objects(seconds,rain=0) {
     this.elapsed=seconds;
-    const out=[{mesh:this.staticMesh},...this.marina.objects(seconds),...this.districts.objects(),...this.civic.objects()];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
+    const out=[{mesh:this.staticMesh},...this.marina.objects(seconds),...this.districts.objects(),...this.civic.objects(),...this.harmony.objects()];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
     if(!this.city)return out;
     const running=this.living&&!this.reduced,t=running?seconds:0,budget=cityBudget(this.city,this.quality,this.reduced,this.living);
     this.stats={...budget,owned:this.city.owned,development:this.city.development};

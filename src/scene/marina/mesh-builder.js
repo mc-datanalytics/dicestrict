@@ -108,14 +108,16 @@ class MeshBuilder {
     for(const id of indices)this.indices.push(offset+id);return this;
   }
   build(name='mesh') {
-    const data=[],indices=[],weld=new Map();
+    const data=[],indices=[],weld=new Map(),remap=new Int32Array(this.vertices.length/12);remap.fill(-1);
+    // Preserve first-occurrence order and exact output; weld each source vertex only once.
     for(const id of this.indices) {
+      if(remap[id]!==-1){indices.push(remap[id]);continue;}
       const v=this.vertices.slice(id*12,id*12+12);
       if(v.some(x=>!Number.isFinite(x)))throw Error(`Non-finite vertex: ${name}`);
       const key=v.map(x=>Math.round(x*1000000)).join(',');
       let next=weld.get(key);
       if(next===undefined){next=data.length/12;data.push(...v);weld.set(key,next);}
-      indices.push(next);
+      remap[id]=next;indices.push(next);
     }
     const array=new Float32Array(data),Index=data.length/12>65535?Uint32Array:Uint16Array;
     return {name,data:array,indices:new Index(indices),typed(){return this.data;}};

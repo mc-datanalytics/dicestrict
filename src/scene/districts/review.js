@@ -1,3 +1,4 @@
+import { createHarmonyAsset, HARMONY_FAMILIES } from '../harmony/kit.js';
 import { createCivicAsset, CIVIC_FACTORIES } from '../civic/kit.js';
 /** Isolated asset inspection with the SAME Renderer and geometry factories as the game. */
 import { Renderer } from '../webgl.js';
@@ -5,6 +6,7 @@ import { createDistrictAsset, createDistrictProp, FAMILIES } from './kit.js';
 import { createAsset, FACTORIES } from '../marina/kit.js';
 import { lookAt, ortho, multiply } from '../math.js';
 const choices=new Map();
+for(const family of HARMONY_FAMILIES)for(const level of [-1,0,1,2,3])for(const variant of level<0?[0]:[0,1])choices.set(`${family}-${variant}-level-${level}`,lod=>createHarmonyAsset(family,level,variant,lod));
 for(const family of FAMILIES)for(const level of [-1,0,1,2,3])for(const variant of level<0?[0]:[0,1])choices.set(`${family}-${variant}-level-${level}`,lod=>createDistrictAsset(family,level,variant,lod));
 for(const name of ['linden','bench','cafe-table','heritage-lamp','office-lamp','container','delivery-truck','gantry'])choices.set(name,lod=>createDistrictProp(name,lod));
 for(const name of Object.keys(FACTORIES))choices.set(name,lod=>createAsset(name,lod));
