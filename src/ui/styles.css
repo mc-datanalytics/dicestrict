@@ -58,4 +58,4 @@
 
 /* Variable-height mobile actions stay in flow: an incoming offer may need
    two rows; it must never cover the next-goal card. */
-@media(max-width:700px){.action-dock{position:relative;top:auto;bottom:auto;left:auto;right:auto;order:1;margin:346px 12px 0}.momentum{margin:15px 12px;order:2}}
+@media(max-width:700px){.stage{height:auto;max-height:none}.action-dock{position:relative;top:auto;bottom:auto;left:auto;right:auto;order:1;margin:346px 12px 0}.momentum{margin:15px 12px;order:2}}
