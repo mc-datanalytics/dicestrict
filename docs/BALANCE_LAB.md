@@ -1,70 +1,60 @@
-# DICESTRICT Balance Lab — alpha 0.5
+# DICESTRICT Balance Lab — alpha 0.6
 
-Le laboratoire fait jouer **le même réducteur `applyAction` que le client**, sans renderer pendant les simulations, sans serveur de partie, sans XP, portefeuille, publicité ou connexion à un compte. Il ne modifie ni les règles d'une partie en cours ni sa sauvegarde. L'interface est séparée du jeu.
+Le laboratoire exécute le même réducteur `applyAction` que le jeu, sans renderer pendant les simulations, sans réseau de partie, sauvegarde humaine, XP, portefeuille ou compte. Il ne change jamais une partie en cours.
 
-## Ouvrir le laboratoire
+## Accès
 
 ```sh
 npm run dev
-# ouvrir http://127.0.0.1:4173/lab.html
+# http://127.0.0.1:4173/lab.html
 npm run build:lab
-# dist/lab.html : version ESM ; dist/dicestrict-lab-offline.html : autonome
+# dist/lab.html et dist/dicestrict-lab-offline.html
 ```
 
-Le lab autonome contient aussi son Web Worker. Il fonctionne sans service externe en `file://`. Le bouton **Arrêter** termine ce Worker ; aucun résultat partiel n'est promu en rapport terminé. Une expérience précédente reste consultable et porte un avertissement si les paramètres ont changé.
+Le HTML autonome embarque son Worker et fonctionne en `file://` sans requête externe. Arrêter termine le Worker ; une expérience incomplète ne devient pas un rapport terminé. Le lab est exclu du build ordinaire ; `--crazygames --lab` est rejeté. Sans WebGL, simulateur, tableaux et replay textuel restent disponibles.
 
-La compilation ordinaire **exclut le lab** du client statique et du bundle du jeu. `--crazygames --lab` est rejeté. La 3D du replay est facultative : graphiques, tableaux, simulateur et états textuels restent accessibles sans WebGL.
+## Comparaisons
 
-## Ce que l'on peut comparer
+A et B partagent graines, identités et rotations. Deux à quatre profils Équilibré, Prudent, Bâtisseur ou Collectionneur ; plafonds de 4–30 manches, 0–3 jetons Mobilité, fin commune à la première faillite, casino désactivé ou politiques de mise bornées. Activer le casino sans politique de mise ne simule pas une participation. Les quotas et réserves sont ceux du moteur.
 
-Deux conditions A et B partagent les graines, identités et rotations. Les réglages disponibles sont le plafond de manches (4–30), les jetons Mobilité (0–3), la fin commune à la première faillite et le casino. Le casino peut être désactivé, activé sans aucune mise, joué par tous à 20 ou 60 crédits, ou uniquement par l'identité 1 à 60 crédits. Les quotas et la réserve sont ceux du vrai moteur ; les politiques ne les contournent jamais.
+La 0.6 ajoute les ouvertures Classique, ordre alterné et compensations de 20/40/60/80 par rang. Le jeu expose seulement Classique et comp-60 facultatif ; la validation de ce dernier est limitée à certains scénarios à quatre sièges. Voir [résultats et contre-exemples](experiments/FAIR_OPENING_RESULTS.md). Le bonus est attribué une fois et compte au score.
 
-Deux à quatre identités sont associées à quatre heuristiques explicites dans `BOT_PROFILES` : Équilibré, Prudent, Bâtisseur et Collectionneur. Le jeu utilise Équilibré par défaut ; le choix des autres profils est un réglage du lab, pas encore un sélecteur de difficulté dans le jeu. Les profils ajustent réserves de trésorerie, plafond d'enchère et développement. Ils voient les dés déjà lancés mais ne lisent ni les graines internes ni les tirages futurs. Le casino choisit rouge sans prédiction.
+Négociation : aucune proposition ou politique réciproque. Celle-ci cherche un échange complétant un quartier pour chaque partie, avec différence de prix et réserve. Les propositions et réponses passent par les commandes réelles du moteur ; les indicateurs comptent propositions, acceptations, refus et terrains échangés. Cette politique étroite ne simule ni bluff, ni alliances, ni conversation humaine. Les bots ne consultent pas les futurs tirages.
 
-**Les bots ne proposent pas d'échanges dans ce lab.** Leur comportement ne représente donc pas une table humaine négociant ses quartiers. Les montants immobiliers, loyers, capital initial et revenus du départ restent ceux du code du jeu ; il n'y a pas de multiplicateur expérimental injecté dans un moteur différent. Pour les changer, modifier les règles versionnées et lancer à nouveau les mêmes expériences sur une autre révision.
+Les prix et loyers restent ceux du code versionné, pas ceux d'un simulateur économique distinct. Modifier ces règles demande de relancer les campagnes sur la nouvelle révision. Les configurations historiques reçoivent explicitement `opening: classic` et `negotiation: none` ; les replays v4 ne sont pas chargés dans v5.
 
-## Méthode et limites statistiques
+## Méthode statistique
 
-Une graine maîtresse produit une liste reproductible de graines de parties (`mix32-v1`). Avec quatre joueurs et la permutation activée, chaque graine donne quatre rotations pour A et quatre pour B. Ainsi **500 graines donnent 4 000 parties, mais seulement 500 blocs expérimentaux**, pas 4 000 observations indépendantes.
+Avec permutation, `identity = (seat + rotation) % players`. Chaque identité occupe chaque siège. Quatre joueurs et 500 graines produisent 4 000 exécutions A+B, mais seulement **500 blocs**. Les rotations sont moyennées par graine et par condition avant les différences B−A. Sans rotation et avec profils différents, siège et stratégie sont confondus.
 
-L'ordre des identités est `identity = (seat + rotation) % players`. Chaque identité joue à chaque place. Pour mesurer l'ordre seul, l'expérience « Ordre de passage » met des bots identiques, sans rotation redondante, et A=B comme contrôle de calcul. Sans rotation avec des profils différents, siège et stratégie sont confondus ; le rapport le signale.
+Les intervalles à 95 % sont les quantiles 2,5 % / 97,5 % de 600 rééchantillonnages de blocs entiers, avec un générateur séparé fixé. Moins de deux blocs : bornes nulles. Moins de 100 graines : avertissement d'exploration. Les résultats sont conditionnels aux politiques, approximatifs et sans correction pour comparaisons multiples ; ils ne décrivent pas une population humaine. Ne jamais choisir puis confirmer une correction sur les mêmes graines.
 
-Pour chaque indicateur, on moyenne les rotations à l'intérieur d'une graine, séparément pour A et B. La différence est calculée **B − A sur cette même graine**, avant l'agrégation. Les intervalles à 95 % sont les quantiles 2,5 % / 97,5 % de **600 rééchantillonnages de blocs entiers**, tirés par un générateur séparé et fixé. Les rotations ne sont jamais rééchantillonnées comme si elles étaient indépendantes. Pour moins de deux blocs, les bornes sont `null`. En dessous de 100 graines, l'interface signale une exploration de petit échantillon.
+A/B partagent une graine initiale, pas nécessairement les mêmes dés par personne jusqu'à la fin : décisions, événements et éliminations peuvent changer la consommation du hasard. Le casino a un flux séparé, public et prédictible ; ce n'est pas un anti-triche.
 
-Ces intervalles sont approximatifs, conditionnels à ces politiques et à ce générateur. Ils ne mesurent pas une population de joueurs humains. Ils ne sont pas corrigés pour les comparaisons multiples. Choisir une variante après avoir examiné beaucoup de résultats puis la retester sur les mêmes graines produit un biais de sélection : utiliser une nouvelle graine maîtresse, garder une série de confirmation à part et faire des essais humains.
+## Indicateurs et échecs
 
-A/B ont la même graine initiale, **pas une garantie de mêmes dés attribués à chaque personne jusqu'à la fin**. Une mobilité différente, un événement ou une élimination peut faire diverger la consommation de hasard. Le flux du casino reste distinct des dés ; cela ne fournit pas un aléatoire secret ni un anti-triche.
+Tours joués = commandes ROLL, sans conversion en minutes. Faillites = fraction de joueurs éliminés et de parties avec une faillite ; son premier moment se calcule seulement là où elle survient. Développement = niveaux et biens finaux, pas constructions cumulées. Patrimoine = `netWorth`, comme le score. Chaque ex æquo reçoit `1 / nombre de gagnants`, pas une victoire exclusive entière. Concentration = part finale du meneur.
 
-## Indicateurs
+Les loyers sont les montants réellement transférés et les investissements ceux des achats, enchères et constructions. Un impayé n'est pas un revenu ; un loyer cumulé n'est pas un rendement causal propre au terrain. Le casino mesure les mises et leur résultat net ; pour la roulette couleur du moteur, 18 numéros gagnent et 19 perdent, soit une espérance de −1/37 par crédit misé, sans garantie sur un échantillon.
 
-- **Tours joués** : nombre de commandes ROLL. Les enchères, choix Mobilité et mises apparaissent dans le nombre séparé de commandes. Aucune conversion trompeuse en minutes.
-- **Faillites** : part des joueurs éliminés et fraction de parties avec au moins une faillite. Le moment de la première faillite a un dénominateur explicite : seulement les parties où elle survient.
-- **Développement** : niveaux, terrains détenus, premier quartier complet et pic des constructions. Les valeurs finales ne sont pas des créations cumulées.
-- **Concentration** : part du patrimoine final détenue par le joueur le plus riche. Le patrimoine est calculé par `netWorth`, exactement comme le score du jeu.
-- **Victoire par siège et identité** : chaque vainqueur d'un ex æquo reçoit `1 / nombre de vainqueurs`. La somme des parts d'une partie vaut 1. Ce ne sont pas des taux de victoires exclusives.
-- **Casino** : mises effectuées et résultat net réellement ajouté au capital du plateau. Pour cette roulette, 18 numéros gagnent et 19 perdent sur un pari de couleur : l'espérance théorique par crédit misé est `(18 − 19) / 37 = −1/37`. Ce n'est pas une garantie sur un petit corpus.
-- **Carte du plateau** : arrivées, loyers effectivement transférés au propriétaire et investissements (achats directs, adjudications et constructions). Un loyer nominal impayé n'est pas compté comme revenu. Les loyers cumulés ne sont pas présentés comme un rendement causal intrinsèque d'un terrain.
+Toute erreur, absence d'action ou dépassement de 4 000 commandes produit une partie failed avec motif et configuration. Le bloc A/B contenant un échec est exclu intégralement de la comparaison, mais reste exporté. Les descriptifs peuvent inclure les parties terminées d'un bloc défectueux avec dénominateur explicite. CLI : code 1 sur échec, 2 sur argument invalide. Aucune partie bloquée n'est transformée en égalité ni remplacée par une autre graine.
 
-Toute erreur du réducteur, absence d'action ou plafond de 4 000 commandes produit une partie **failed**, avec graine, rotation, condition et motif. Les blocs contenant un échec sont exclus intégralement des comparaisons ; les tentatives et échecs restent exportés. Les statistiques descriptives de chaque condition peuvent inclure ses parties terminées dans un bloc défectueux ; ce dénominateur est explicite. La CLI sort avec le code 1 en cas d'échec et 2 en cas d'argument invalide. Il n'y a pas de tirage automatiquement remplacé ni de match bloqué transformé en égalité.
-
-## Reproduire, exporter, auditer
+## Exports et reproduction
 
 ```sh
-npm run balance -- --experiment casino --samples 500 --seed 982451653 --out lab-results/casino
-npm run balance -- --experiment mobility --samples 500 --seed 123456789 --out lab-results/mobility
-npm run balance -- --experiment seats --samples 1000 --seed 20260906 --out lab-results/seats
 npm run balance -- --config docs/experiments/casino.json --out lab-results/custom --replay-out lab-results/replay.json
 npm run balance -- --verify-replay lab-results/replay.json
+npm run balance:opening -- development lab-results/fair-opening
+npm run balance:opening -- confirmation lab-results/fair-opening
+npm run playtest:verify -- chemin/trace.json
 ```
 
-La CLI autorise jusqu'à 2 000 graines ; l'interface navigateur est bornée à 500. Le rapport JSON complet contient les conditions, versions, politiques, règles, résultats par partie et empreintes. Le CSV fournit une ligne par tentative. Le fichier `*-summary.json` conserve les agrégats sans répéter toutes les parties.
+CLI : au plus 2 000 graines par condition ; interface : 500. JSON : configuration, versions, mesures, trajectoires et empreintes. CSV : une ligne par tentative. Les résumés omettent les listes de parties. SHA-256 du moteur, des politiques et du lab avec hashes individuels ; le mode de développement est indiqué non empreinté. Les temps d'exécution ne perturbent pas le rapport déterministe.
 
-La compilation du lab et la CLI enregistrent le **SHA-256 des sources du moteur, des politiques et du lab**, avec empreinte individuelle de chaque fichier pertinent. Le mode `npm run dev` est explicitement indiqué comme non empreinté. Conserver le rapport et la révision Git avec toute décision. Les horloges d'exécution ne sont pas incluses dans les résultats : à sources et configuration identiques, le rapport est reproductible.
+Le replay reconstruit la partie depuis sa configuration, puis vérifie acteur, commande et checksum après chaque action. Son lecteur 3D est en lecture seule. Les hashes détectent des divergences ; ils ne sont pas des signatures.
 
-Le replay régénère une partie choisie et conserve l'état initial, l'acteur, la commande et le checksum après chaque action. La vérification reconstruit l'état initial attendu depuis la configuration et refuse un état modifié, une commande illégale ou une empreinte divergente. Le lecteur propose une ville 3D manipulable et un curseur par commande, sans rejouer ces actions dans une session humaine. Le checksum FNV de replay détecte des divergences ; ce n'est pas une signature anti-triche.
+## Essais locaux importés
 
-## Validation
+L'import `dicestrict-playtest` accepte au plus 8 Mo / 4 000 commandes et vérifie une trace pseudonymisée. Il la rejoue sans l'ajouter aux statistiques A/B, sans toucher aux sauvegardes et sans télémétrie. Une trace conforme ne certifie pas la présence de personnes ni l'honnêteté de l'hôte. Voir [HUMAN_PLAYTESTS.md](HUMAN_PLAYTESTS.md) : **aucun résultat humain recueilli dans cette livraison**.
 
-`tests/balance.test.mjs` couvre configuration, rotations, reproductibilité, intervalle par bloc, échecs explicites, données économiques, politiques casino, replays altérés et CSV. `tests/lab_browser.py` compare le rapport d'un vrai Web Worker au résultat Node, teste l'annulation, le mode autonome sans requête externe, le mobile émulé, le replay WebGL2 et son repli textuel. Le build et le lab ne contactent pas la production.
-
-Référence technique officielle pour l'arrêt des calculs : https://developer.mozilla.org/en-US/docs/Web/API/Worker/terminate
+Les tests du lab comparent Worker/Node, contrôlent annulation, mobile émulé, mode autonome, WebGL et secours. Les sessions complètes à quatre pairs sont automatisées et distinctes de la campagne statistique. Preuves et limites dans [VALIDATION.md](VALIDATION.md).

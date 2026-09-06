@@ -1,3 +1,11 @@
+# 0.6.0 — Ouverture équitable et essais locaux
+
+- Six départs versionnés dans le lab ; classique et comp-60 facultatif dans le jeu. Défaut classique conservé, protocole/sauvegarde v5.
+- Choix préenregistré, confirmation sur graines indépendantes, négociation automatique et sensibilités ; 19 800 trajectoires. Résultat à deux joueurs défavorable, autres scénarios non concluants conservés.
+- Politique de propositions réciproques, indicateurs de transactions, sans accès aux futurs dés.
+- Enregistrement volontaire en mémoire, export pseudonymisé et vérification/replay de sessions locales. Aucun participant humain observé dans cette livraison.
+- Tests Node ciblés et parcours automatisés de parties complètes à quatre contextes WebRTC ; résultats effectifs dans docs/VALIDATION.md.
+
 # 0.5.0 — Balance Lab
 
 - Laboratoire facultatif dans `/lab.html` et HTML autonome : A/B, graines partagées, permutations, quatre profils, visualisation et export des résultats.

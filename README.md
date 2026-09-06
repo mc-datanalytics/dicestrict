@@ -2,7 +2,7 @@
 
 **Roll. Build. Rule.** Une ville miniature, quatre ambitions, un lancer à la fois.
 
-Jeu original de stratégie immobilière 3D pour navigateur. Ville : **Aurora** ; interface française, crème / vert profond / quartiers pastel. **Alpha 0.5.0**, pas une sortie commerciale. La branche de travail est `feat/balance-lab-0-5` ; la distribution CrazyGames n'est pas publiée.
+Jeu original de stratégie immobilière en 3D pour navigateur. Ville **Aurora**, interface française crème / vert profond / quartiers pastel. **Alpha 0.6.0**, pas une sortie commerciale. Aucun déploiement CrazyGames ou système de récompenses permanentes.
 
 ## Jouer et ouvrir le lab
 
@@ -11,49 +11,52 @@ Node.js 22+, aucune dépendance JavaScript à installer.
 ```sh
 git clone https://github.com/mc-datanalytics/dicestrict.git
 cd dicestrict
-git switch feat/balance-lab-0-5
 npm run dev
 ```
 
-Jeu : **http://127.0.0.1:4173**. Laboratoire : **http://127.0.0.1:4173/lab.html**.
+Jeu : **http://127.0.0.1:4173**. Lab : **http://127.0.0.1:4173/lab.html**.
 
 ```sh
 npm run check
 npm test
 npm run build       # jeu statique + dist/dicestrict-offline.html
-npm run build:lab   # ajoute lab.html et dicestrict-lab-offline.html
+npm run build:lab   # ajoute lab.html + dicestrict-lab-offline.html
 npm run preview
 ```
 
-Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le jeu autonome est local ; le multijoueur nécessite une signalisation. Le lab embarque son Worker et n'utilise aucune sauvegarde de jeu. La compilation ordinaire exclut le lab ; `--crazygames --lab` est interdit.
+Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le lab inclut son Worker et ne touche pas aux sauvegardes du jeu. Le jeu autonome permet le mode local ; le multijoueur nécessite une signalisation. Le lab est exclu du build ordinaire et de CrazyGames.
 
-## Nouveautés 0.5
+## 0.6 : tester une ouverture plus équitable
 
-Le [Balance Lab](docs/BALANCE_LAB.md) fait jouer **le vrai moteur**, compare A/B, permute les sièges, utilise quatre profils de bots et calcule des intervalles par bloc de graine. Configuration des manches, mobilité, règle de clôture et casino ; exports JSON/CSV, empreintes des sources et replays vérifiés en 3D ou texte. Aucun ajustement automatique des règles.
+**Départ compensé, facultatif** : 1 800 / 1 860 / 1 920 / 1 980 crédits à quatre sièges. Le choix est annoncé avant le lancement et conservé dans l'état. Le bonus compte aussi dans le score au patrimoine. **Classique reste le réglage par défaut** : une réduction de biais chez certains bots ne suffit pas à imposer une nouvelle règle aux humains.
+
+Six variantes ont été comparées sur des graines de développement, puis une seule retenue avant confirmation. **19 800 trajectoires, zéro échec**, 6 800 graines distinctes dont 6 000 hors développement. Sur la confirmation principale à quatre bots identiques / 12 manches, l'écart maximum–minimum des parts de victoire passe de **13,45 à 4,225 points**. Un autre corpus avec négociation automatisée confirme une réduction. Le résultat à deux joueurs est moins bon ; les autres sensibilités restent non concluantes. [Plan, résultats et limites](docs/experiments/FAIR_OPENING_RESULTS.md).
+
+Les bots peuvent maintenant **proposer des échanges réciproques** complétant un quartier pour chacun, via les vraies commandes du moteur. Cette politique est volontairement bornée, sans lecture des futurs tirages. Le lab permet de l'activer ou de la couper ; le jeu l'utilise pour ses bots. Les joueurs humains restent libres de proposer, refuser ou faire une contre-offre.
+
+**Essais locaux enregistrés sur consentement** : activer l'enregistrement de la prochaine partie depuis le salon/réglages, puis exporter sa trace pseudonymisée. Aucun envoi automatique. Importer la trace dans le lab pour la rejouer, sans la mélanger aux statistiques simulées. La trace ne certifie pas la présence d'humains ou l'honnêteté de l'hôte. [Protocole de pilote humain](docs/HUMAN_PLAYTESTS.md) — **aucun essai humain recueilli dans cette livraison**.
 
 ```sh
-npm run balance -- --experiment casino --samples 500 --seed 982451653
-npm run balance -- --config docs/experiments/seats.json --out lab-results/seats
-npm run balance -- --verify-replay lab-results/replay.json
+npm run balance:opening -- development lab-results/fair-opening
+npm run balance:opening -- confirmation lab-results/fair-opening
+npm run playtest:verify -- chemin/trace.json
 ```
 
-[Premières mesures : 10 000 trajectoires, zéro échec](docs/experiments/BASELINE_0_5.md). Les répétitions et rotations ne sont pas des observations indépendantes. Ces résultats concernent des bots, pas des humains ; ils ne mesurent pas le plaisir ni la durée réelle en minutes.
+## Le jeu et le laboratoire
 
-Dans le jeu, les bots savent lever une hypothèque après reconstitution d'une réserve suffisante. Désactiver les mouvements pendant un déplacement place le pion à son arrivée ; les invalidations graphiques de taille identique sont filtrées. Le moteur et le protocole restent v4 : les règles n'ont pas été modifiées par le lab.
+Plateau original de 28 cases / 16 terrains / 8 quartiers. Achats, loyers, constructions équilibrées, hypothèques, enchères, faillites et score au patrimoine ; négociation publique non modale, contre-offres et échanges atomiques ; deux jetons Mobilité gratuits pour ±1 case. Formats Blitz 6 / Standard 12 / Grand District 18 manches. Le moteur et le lab supportent 2–4 joueurs ; l'interface de partie remplit quatre places, avec des bots si nécessaire.
 
-## Fonctionnalités du jeu
+La ville procédurale WebGL2 reflète propriétaires, constructions et hypothèques : commerces, terrasses, circulation, bus, piétons, grues, éclairage jour/nuit et événements visuels. Réglages qualité, mouvements réduits, ville figée et météo. [Spécification de la ville](docs/LIVING_CITY.md).
 
-- Plateau original de 28 cases, 16 terrains / 8 quartiers, 2 à 4 joueurs, IA, achats, loyers, constructions équilibrées, hypothèques, enchères, faillites et score au patrimoine.
-- Négociation publique non modale, contre-offres et échanges atomiques hors tour aux phases sûres. Deux jetons Mobilité gratuits permettent un choix à ±1 case après le lancer. Formats Blitz 6 / Standard 12 / Grand District 18 manches.
-- Ville procédurale WebGL2 : parcelles liées aux propriétaires, niveaux et hypothèques ; commerces, terrasses, circulation, bus, piétons, grues, célébrations, éclairage jour/nuit, métro de surface, ambulance ponctuelle et pluie légère. Réglages qualité, mouvements réduits, ville figée et météo. [Spécification 0.4](docs/LIVING_CITY.md).
-- Casino facultatif rouge/noir : une mise de 20/40/60 crédits maximum par manche, hors tour, réserve de 200, confirmation. **Uniquement le capital de la partie**, sans achat, conversion, retrait, recharge publicitaire ou récompense de compte. Gains et pertes affectent les investissements.
-- Sauvegarde locale, aide, historique, affichage mobile et repli sans WebGL. Salons WebRTC, code d'invitation, resynchronisation, suspension lors d'une déconnexion et revanche dans le même salon.
+Le casino facultatif utilise **uniquement le capital fictif de la partie** : pas d'achat, conversion, retrait, recharge publicitaire, XP ou monnaie de compte. Ses gains et pertes changent réellement les fonds disponibles pour investir. La roulette rouge/noir conserve ses mises plafonnées, quotas, réserve et confirmation.
 
-Les sauvegardes et le réseau utilisent le schéma v4 depuis 0.4. Les anciennes sauvegardes v3 ne sont ni importées ni supprimées. Les profils Prudent, Bâtisseur et Collectionneur sont sélectionnables dans le lab ; le jeu garde Équilibré par défaut. Les bots du lab n'initient pas de négociations.
+Le [Balance Lab](docs/BALANCE_LAB.md) exécute le vrai moteur : comparaisons A/B, quatre profils, rotations des sièges, intervalles par blocs de graines, configurations et exports JSON/CSV, empreintes de sources, replays 3D ou textuels. Prix et loyers restent définis dans les règles, pas dans un moteur approximatif séparé.
 
-## Validation
+## Migration et validation
 
-**83 tests Node**, plus deux suites navigateur distinctes. Les résultats réellement vérifiés, environnements et limites sont dans [VALIDATION.md](docs/VALIDATION.md). Les artefacts GitHub Actions contiennent les captures, rapports, sources exactes et builds ; un artefact peut également exister après un échec, donc vérifier la conclusion du run.
+**Règles, réseau et sauvegardes passent en v5**, lab v2 / politiques v3. Pas de compatibilité silencieuse avec v4. Les anciennes sauvegardes restent sous leur ancienne clé ; elles ne sont ni supprimées ni importées. Les configurations historiques du lab reçoivent explicitement les valeurs `opening: classic` et `negotiation: none` ; les anciens replays de moteur restent incompatibles.
+
+Consulter [VALIDATION.md](docs/VALIDATION.md) pour les résultats exécutés, les révisions et les limites, pas seulement le nombre de tests. Les artefacts GitHub Actions peuvent exister après un échec : vérifier aussi la conclusion et les rapports.
 
 ```sh
 npm run check && npm test && npm run build
@@ -62,22 +65,21 @@ python -m playwright install --with-deps chromium
 python tests/browser.py
 npm run build:lab
 python tests/lab_browser.py
+python tests/playtest_browser.py
 ```
 
 ## Réseau, confiance et CrazyGames
 
-Le serveur `scripts/dev.mjs` est une signalisation **de développement**, bornée, en mémoire, liée par défaut à `127.0.0.1`. Il n'exécute pas la partie, ne fournit pas TURN et ne survit pas à un redémarrage. Le navigateur hôte arbitre ; les pairs rejouent les commandes. Les graines publiques et checksums ne rendent pas un hôte malveillant fiable.
-
-**Aucune XP ni monnaie permanente n'est attribuée.** Un résultat P2P n'est jamais une preuve suffisante pour créditer un compte. Arbitrage serveur, authentification vérifiée et registre transactionnel/idempotent restent à construire. Aucun Supabase existant ni service payant n'est modifié.
+`scripts/dev.mjs` est une signalisation de développement bornée, en mémoire, liée par défaut à `127.0.0.1`, sans TURN. Le navigateur hôte arbitre ; les pairs rejouent les commandes. Les graines publiques et checksums ne rendent pas un hôte malveillant fiable. Ni résultat P2P ni trace de test ne doivent créditer un compte.
 
 ```sh
 SIGNAL_URL=wss://votre-service.example/signal npm run build -- --crazygames
 ```
 
-Le build active l'adaptateur SDK optionnel et exige une signalisation configurée ; il ne déploie rien. `TURN_CREDENTIALS_URL=https://...` peut désigner un endpoint à identifiants éphémères. Ne jamais publier un secret TURN permanent, une clé privée ou une clé service-role. L'intégration finale reste à recetter dans le portail CrazyGames.
+Cette compilation configure le SDK optionnel ; elle ne déploie pas de service. Aucun Supabase existant ni service payant n'a été modifié. Ne jamais publier de secret TURN permanent, clé privée ou service-role. Authentification vérifiée, arbitre serveur, registre de récompenses, matchmaking, reprise après rafraîchissement et migration de l'hôte restent à construire.
 
-Pas encore de matchmaking public, reconnexion après rafraîchissement, migration de l'hôte, minuterie AFK, comptes persistants, boutique ou classement serveur. Safari/iOS, Android réel, réseaux mobiles et TURN ne sont pas validés par des tests Chromium locaux. Aucune capacité à des millions de parties n'est démontrée.
+Safari/iOS, téléphones physiques, GPU matériel et réseaux mobiles/TURN restent à recetter. Aucun résultat de simulation ne démontre une rétention, une durée humaine ou une capacité à des millions de parties.
 
-Voir [architecture](docs/ARCHITECTURE.md), [sécurité](SECURITY.md), [roadmap](docs/ROADMAP.md) et [analyse des retours](docs/research/PLAYER_FEEDBACK.md). Le nom DICESTRICT reste à vérifier commercialement ; aucun plateau, texte de cartes ou élément graphique de Monopoly n'est repris.
+[Architecture](docs/ARCHITECTURE.md) · [Sécurité](SECURITY.md) · [Roadmap](docs/ROADMAP.md). Le nom DICESTRICT reste à vérifier commercialement. Aucun plateau, texte de carte ou graphisme de Monopoly n'est repris.
 
 Copyright © 2026 M&G Group. Tous droits réservés. Aucune licence open source n'est accordée.
