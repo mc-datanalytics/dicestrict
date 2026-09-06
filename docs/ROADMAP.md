@@ -1,21 +1,23 @@
-# Livraison
+# Plan de livraison
 
-## 0.2 — base jouable
+Référence produit : [retours Monopoly → exigences DICESTRICT](research/PLAYER_FEEDBACK.md).
 
-Sources complètes, client local 3D, enchères, salons amicals, suite de règles/protocole/signalisation, build statique et tests navigateur automatisés. Aucune infrastructure externe déployée.
+## Livré dans l'alpha 0.3
 
-## 0.3 — réseau réel
+Plateau 3D original, achats/loyers/constructions/hypothèques, enchères au tour par tour, parties locales et salons WebRTC amicals ; maintenant échanges publics atomiques hors tour et contre-offres, deux jetons Mobilité, formats 6/12/18 et fin commune à la première faillite en Blitz. Les fins de tour bornent les offres ; aucune garantie en minutes. Les tests fonctionnels ne valent pas validation du plaisir ou de l'équilibrage.
 
-Déployer une signalisation WSS avec origines autorisées, quotas, expiration et observabilité. Ajouter TURN à identifiants courts, essais Wi-Fi/4G/CGNAT, tests de latence, timeout de décision et reconnexion. Choisir explicitement une stratégie de migration de l'hôte ; ne pas reprendre une partie depuis un état client non vérifié pour des récompenses.
+## Priorité de production : ne pas perdre la table
 
-## 0.4 — profondeur et expérience
+Reconnexion au même siège après interruption et rafraîchissement, rattrapage de commandes, absence de double application, période de grâce, statut réseau explicite. Puis migration de l'hôte avec politique claire sur les états divergents et partitions réseau. Tester sous Wi-Fi, 4G/5G, NAT différents, TURN, suspension d'onglet et Safari/iOS. La version actuelle suspend la partie lors d'une perte de joueur ; elle ne la rétablit pas.
 
-Échanges de propriétés à confirmation bilatérale, tutoriel interactif court, réglages de durée, localisation anglaise, interactions tactiles affinées, audio plus riche, équilibrage des quartiers et essais GPU/mobile. Ne pas mélanger cosmétiques de compte et avantages économiques sur le plateau.
+## Expérience : observer avant d'accumuler des règles
 
-## 0.5 — économie fiable
+Comparer 0.2/0.3 avec des humains, mesurer durée et attente entre décisions, compréhension des offres, jetons consommés, abandon et demande de revanche. Évaluer la fin commune de Blitz et les effets de la négociation sur l'avance des leaders. Tester ensuite les horloges d'enchères/décisions et la gestion AFK sans interrompre une négociation active.
 
-Authentification côté serveur, arbitre de parties récompensées, registre idempotent d'XP et de monnaie, limite de farming/collusion, tests de concurrence et tests d'abus. Déployer seulement après avoir choisi le projet et les coûts de l'infrastructure ; aucun secret dans le client.
+La restructuration « Last Stand », les prêts et l'éditeur de règles ne doivent entrer qu'avec un coût explicite, des limites anti-boucles et un protocole versionné. Une variante classée devra traiter la collusion et les échanges de complaisance.
 
-## CrazyGames — recette avant soumission
+## Publication et récompenses
 
-Tester vrais comptes et invitations, instant multiplayer, noms reconnus, passage à la manche suivante, priorité du mute plateforme, pause des publicités éventuelles, liens externes, mesures de performance et artefact final dans le portail. Le SDK seul n'est pas une certification.
+Déployer une signalisation sécurisée, des identifiants TURN éphémères et des métriques de capacité/coût ; aucune promesse de millions de parties sans mesure. Recetter l'adaptateur sur CrazyGames, contrôler le chargement, les invitations, l'audio et l'accessibilité sur appareils réels.
+
+Les parties récompensées nécessitent une autorité serveur, une identité vérifiée et un registre transactionnel idempotent. Aucun crédit persistant ne découle d'une déclaration du navigateur hôte. Pas de monétisation des jetons de décision dans cette proposition.

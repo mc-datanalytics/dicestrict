@@ -1,4 +1,4 @@
-# Architecture 0.2
+# Architecture 0.3
 
 ## Découpage
 
@@ -6,6 +6,8 @@
 | --- | --- |
 | `src/game/board.js` | Données originales, économie, placement des 28 cases |
 | `src/game/engine.js` | Réducteur pur, validation, enchères et calcul du patrimoine |
+| `src/game/deals.js` | Offres publiques bornées, échanges atomiques, expiration et validation |
+| `src/game/presets.js` | Formats explicites annoncés avant le lancement |
 | `src/game/bots.js` | Décisions basées uniquement sur les informations visibles |
 | `src/scene/` | Géométrie procédurale, matrices, WebGL2, caméra et animations |
 | `src/ui/` | Interface DOM accessible et coordination des actions |
@@ -15,9 +17,19 @@
 
 ## État et commandes
 
-Les commandes acceptées sont `ROLL`, `BUY`, `SKIP`, `END`, `UPGRADE`, `SELL_LEVEL`, `MORTGAGE`, `REDEEM`, `BID`, `PASS`. Le moteur clone l'état, vérifie l'acteur et la phase, applique la règle, incrémente la révision et vérifie les invariants. `currentPlayer` retourne l'enchérisseur pendant une enchère, sans modifier le propriétaire du tour normal.
+Les commandes acceptées sont `ROLL`, `BUY`, `SKIP`, `END`, `UPGRADE`, `SELL_LEVEL`, `MORTGAGE`, `REDEEM`, `BID`, `PASS`, `MOVE`, `OFFER_DEAL`, `ACCEPT_DEAL`, `DECLINE_DEAL`, `CANCEL_DEAL`. Le moteur clone l'état, vérifie l'acteur et la phase, applique la règle, incrémente la révision et vérifie les invariants. `currentPlayer` retourne l'enchérisseur pendant une enchère, sans modifier le propriétaire du tour normal.
 
-Le protocole v2 porte l'identifiant de partie et sa révision. Le transport associe l'identité à la connexion ; il n'utilise jamais un identifiant d'acteur revendiqué par le client. Le checksum FNV-1a détecte les divergences accidentelles, pas une attaque. Les snapshots sont validés structurellement mais restent des données de l'hôte non fiables.
+Le protocole v3 porte l'identifiant de partie et sa révision. Le transport associe l'identité à la connexion ; il n'utilise jamais un identifiant d'acteur revendiqué par le client. Le checksum FNV-1a détecte les divergences accidentelles, pas une attaque. Les snapshots sont validés structurellement mais restent des données de l'hôte non fiables.
+
+## Mobilité et négociation
+
+`ROLL` produit les dés sans déplacement si le joueur possède encore un jeton. La phase `choose` attend `MOVE` avec offset −1/0/+1. Le choix normal ne consomme rien ; les autres consomment une unité. La résolution de case et le passage au départ sont appliqués une seule fois après la décision. Le moteur brut autorise zéro à trois jetons initiaux ; les trois formats exposés dans l'interface en donnent deux.
+
+Les commandes de négociation utilisent l'identité du pair et non le joueur dont c'est le tour. Une acceptation doit viser une offre ouverte adressée à ce pair. L'objet contient des contreparties fixées ; elles sont revérifiées sur l'état courant puis transférées atomiquement. Aucun entier fractionnaire, terrain dupliqué, double acceptation, crédit négatif ou promesse différée n'est autorisé. Les offres affectées par une vente, une construction, une insolvabilité ou une expiration sont clôturées.
+
+Le numéro `turnSerial` compte les fins de tour ordinaires (pas les clics ou enchères). Il règle les échéances et quotas, sans utiliser d'horloge murale dans le réducteur. Les tableaux d'offres, listes de terrains et identifiants sont bornés. Un client peut accepter une offre avec une révision légèrement ancienne : le jeu doit correspondre, la révision ne doit pas être future et toutes les conditions sont revérifiées. Les commandes ordinaires exigent toujours une révision exacte. Le rejeu intègre chaque action acceptée dans l'ordre choisi par l'hôte.
+
+Les règles du salon sont diffusées par `lobby-rules`, validées puis copiées dans le snapshot de début. L'interface de choix disparaît après le lancement. En Blitz, une faillite déclenche directement la clôture commune et ferme les offres ; le score reste le patrimoine des joueurs solvables. Pas de nouvelle monnaie ou de nouvelle écriture externe.
 
 ## Partie amicale
 

@@ -2,7 +2,7 @@
 
 **Roll. Build. Rule.** Une ville miniature, quatre ambitions, un lancer à la fois.
 
-Jeu de stratégie immobilière original en 3D pour navigateur, préparé pour une future distribution sur CrazyGames. Ville : **Aurora**. Interface française, direction crème / vert profond / quartiers pastel. Alpha **0.2.0**, pas une sortie commerciale.
+Jeu de stratégie immobilière original en 3D pour navigateur, préparé pour une future distribution sur CrazyGames. Ville : **Aurora**. Interface française, direction crème / vert profond / quartiers pastel. Alpha **0.3.0**, pas une sortie commerciale.
 
 ## Jouer et développer
 
@@ -35,11 +35,24 @@ npm run preview
 - Salons WebRTC amicals, code d'invitation, synchronisation par commandes, resynchronisation, suspension en cas de déconnexion et revanche dans le même salon.
 - Adaptateur CrazyGames v3 : SDK optionnel, informations de salon, invitations, entrée directe en multijoueur, noms de compte et priorité au réglage audio de la plateforme.
 
+## Ce que les retours joueurs ont changé en 0.3
+
+Voir l'[analyse critique des avis et les exigences de livraison](docs/research/PLAYER_FEEDBACK.md). Elle distingue les observations, les vérifications externes et les idées à éprouver : ce n'est pas une collecte exhaustive d'avis.
+
+- **Négocier sans arrêter la table** : panneau non modal, offres publiques de terrains et de crédits, acceptation, refus, annulation et contre-offre, y compris hors tour. Conclusion avant le lancer ou en fin de tour ; pas pendant un déplacement, un achat ou une enchère. Les conditions sont revérifiées à l'acceptation, sans transfert partiel.
+- **Deux jetons Mobilité identiques pour tous** : après le lancer, trajet normal gratuit ou arrivée à ±1 case contre un jeton. Le hasard n'est pas supprimé. Une fois les jetons épuisés, déplacement automatique. Pas d'achat ni de recharge de jetons.
+- **Formats explicites** : Blitz, 6 manches maximum et fin commune dès la première faillite ; Standard, 12 manches ; Grand District, 18 manches. Le nombre de manches est plafonné, pas la durée réelle en minutes. Les invités voient les règles avant le lancement.
+- **Clôture annoncée** dans les deux dernières manches, sans hausse surprise de loyer.
+
+Les offres n'immobilisent pas les fonds et expirent après un cycle de table compté en fins de tour. Une offre ouverte par joueur, trois propositions par tour actif. Les quartiers construits et terrains hypothéqués ne sont pas échangeables. Chaque partie doit fournir quelque chose. Les IA répondent par une heuristique simple ; aucune promesse d'équité économique ou de résistance à la collusion.
+
+Le moteur et le protocole passent en **version 3**. Les sauvegardes v2 ne sont pas migrées : elles restent sous leur ancienne clé locale, et la version 0.3 utilise une nouvelle clé. Les clients v2/v3 ne peuvent pas participer à la même session.
+
 ## Validation
 
-La suite Node contient **27 tests** et simule **500 parties complètes**, puis rejoue leurs **44 337 actions** à l'identique. Elle vérifie également les frontières du protocole et le serveur de signalisation sur de vraies connexions WebSocket locales.
+La suite Node contient **52 tests**. Elle simule 500 parties de référence (44 337 actions) et 300 parties avec mobilité et offres (40 889 actions, dont 3 207 propositions), puis vérifie leurs replays identiques. Ces 800 parties synthétiques valident des invariants, pas le plaisir ou la durée de parties humaines. Elle vérifie également les frontières du protocole et le serveur de signalisation sur de vraies connexions WebSocket locales.
 
-`tests/browser.py` couvre le rendu WebGL2, la sauvegarde, les enchères, deux contextes Chromium reliés en WebRTC, la revanche, la perte de l'hôte, le mobile et le mode de secours. Le résultat navigateur effectif est fourni par **GitHub Actions**, avec captures d'écran dans l'artefact `dicestrict-build-and-browser-report`. L'existence des tests ne signifie pas que tous les appareils et réseaux ont été validés.
+`tests/browser.py` couvre le rendu WebGL2, la sauvegarde, les enchères, deux contextes Chromium reliés en WebRTC, la revanche, la perte de l'hôte, le mobile, le mode de secours, les choix de mobilité, les offres/contre-offres en WebRTC et le HTML autonome. Le résultat navigateur effectif est fourni par **GitHub Actions**, avec captures d'écran dans l'artefact `dicestrict-build-and-browser-report`. L'existence des tests ne signifie pas que tous les appareils et réseaux ont été validés.
 
 ```sh
 python -m pip install playwright==1.57.0
@@ -69,7 +82,7 @@ Voir [architecture](docs/ARCHITECTURE.md), [plan de livraison](docs/ROADMAP.md),
 
 ## Limites connues
 
-Pas encore de matchmaking public, reprise après rafraîchissement en multijoueur, migration de l'hôte, échanges négociés, comptes persistants, boutique, publicités ou classement serveur. Le réglage et la connexion réels au SDK restent à recetter dans le portail CrazyGames. La capacité à accueillir des millions de parties n'a pas été mesurée.
+Pas encore de matchmaking public, reprise après rafraîchissement en multijoueur, migration de l'hôte, minuteurs AFK, éditeur complet de règles, restructuration, comptes persistants, boutique, publicités ou classement serveur. Le réglage et la connexion réels au SDK restent à recetter dans le portail CrazyGames. La capacité à accueillir des millions de parties n'a pas été mesurée.
 
 Le code et les éléments visuels sont originaux ; aucun plateau, texte de cartes ou élément graphique de Monopoly n'est repris. Le nom DICESTRICT est un nom de travail : sa disponibilité commerciale reste à vérifier.
 
