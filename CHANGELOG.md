@@ -1,3 +1,12 @@
+# 0.7.0 — Rythme et rivalités (proposition)
+
+- Cap contextuel, étapes de partie et écart de patrimoine lisible, avec gestion des égalités.
+- Brouillons d'échanges réciproques éditables ; aucune soumission automatique.
+- Pause volontaire des IA sur une offre adressée au joueur en solo, libérable sans réponse.
+- Rythmes solo Dynamique / Détendu, distincts des mouvements réduits et du réseau.
+- Temps forts et bilan bornés en mémoire, historiques incomplets signalés, aucune XP/monnaie.
+- Tests ciblés additionnels ; aucune modification des règles, protocoles, modèles 3D ou du lab.
+
 # 0.6.0 — Ouverture équitable et essais locaux
 
 - Six départs versionnés dans le lab ; classique et comp-60 facultatif dans le jeu. Défaut classique conservé, protocole/sauvegarde v5.

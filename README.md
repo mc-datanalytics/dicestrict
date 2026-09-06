@@ -2,7 +2,7 @@
 
 **Roll. Build. Rule.** Une ville miniature, quatre ambitions, un lancer à la fois.
 
-Jeu original de stratégie immobilière en 3D pour navigateur. Ville **Aurora**, interface française crème / vert profond / quartiers pastel. **Alpha 0.6.1**, pas une sortie commerciale. Aucun déploiement CrazyGames ou système de récompenses permanentes.
+Jeu original de stratégie immobilière en 3D pour navigateur. Ville **Aurora**, interface française crème / vert profond / quartiers pastel. **Alpha 0.7.0 — branche de proposition**, pas une sortie commerciale. Aucun déploiement CrazyGames ou système de récompenses permanentes.
 
 ## Jouer et ouvrir le lab
 
@@ -25,6 +25,21 @@ npm run preview
 ```
 
 Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le lab inclut son Worker et ne touche pas aux sauvegardes du jeu. Le jeu autonome permet le mode local ; le multijoueur nécessite une signalisation. Le lab est exclu du build ordinaire et de CrazyGames.
+
+## 0.7 : objectifs, rythme et rivalités (branche non fusionnée)
+
+Un cap contextuel indique le prochain quartier ou investissement ; des échanges
+réciproques peuvent être préparés puis édités avant tout envoi. En solo, les IA
+attendent une réponse à leurs offres, avec possibilité explicite de continuer
+sans répondre. Le rythme Dynamique / Détendu ne change que leur délai de décision
+local, pas les dés, les règles, les animations ou le rythme réseau.
+
+Des étapes de partie, le vrai écart de patrimoine et un bilan de vos achats,
+constructions, échanges et loyers rendent les décisions plus lisibles. Aucun
+bonus économique ni récompense permanente. Les historiques partiels sont signalés.
+Voir [l'évaluation, les changements et les limites](docs/ENGAGEMENT_0_7.md).
+La ville 3D parallèle n'est pas remplacée ; aucun module de règles, de réseau,
+de scène ou de simulation n'est modifié par cette tranche.
 
 ## 0.6.1 : correctifs de fiabilité
 

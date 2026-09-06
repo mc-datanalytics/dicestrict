@@ -1,6 +1,6 @@
 {
   "name": "dicestrict",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "description": "An original local-first 3D property strategy game.",
   "type": "module",

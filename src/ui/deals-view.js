@@ -25,7 +25,7 @@ function updateDealPanel(app) {
   const inbox = document.querySelector('#deal-inbox');
   document.querySelectorAll('.deal-count').forEach(e => e.textContent = s.deals.filter(d => d.to === me).length || '');
   if (!inbox || document.querySelector('#deal-panel').hidden) return;
-  document.querySelector('#deal-status').textContent = s.phase === 'finished' ? 'Le marché est fermé : partie terminée.' : !open ? 'La table continue. Transactions possibles avant le lancer ou à la fin d’un tour.' : 'La table continue : négociez même pendant le tour d’un autre joueur.';
+  document.querySelector('#deal-status').textContent = app.offerHold?.() ? 'Solo : les IA attendent votre décision. Vous pouvez aussi continuer sans répondre depuis le plateau.' : s.phase === 'finished' ? 'Le marché est fermé : partie terminée.' : !open ? 'La table continue. Transactions possibles avant le lancer ou à la fin d’un tour.' : 'La table continue : négociez même pendant le tour d’un autre joueur.';
   const submit = document.querySelector('#deal-form [type="submit"]');
   if (submit) submit.disabled = !open || s.deals.some(d => d.from === me);
   inbox.innerHTML = `<h3>Offres publiques · ${s.deals.length}</h3>${s.deals.map(d => {
