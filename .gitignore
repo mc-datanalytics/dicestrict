@@ -1,0 +1,10 @@
+dist/
+node_modules/
+test-results/
+__pycache__/
+*.pyc
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store

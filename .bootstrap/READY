@@ -1,5 +1,0 @@
-DICESTRICT 0.2.0
-Source archive SHA-256: 1c8fbc472f132fb38422781472ea397e508dcdb7b16354e7b9bb18f8a94faeab
-32 source files. Seven transferred chunks verified against local Git blob hashes.
-Local validation: 27 tests pass; 500 deterministic games and 44,337 actions replay identically.
-Run the importer and real Chromium/WebRTC validation.

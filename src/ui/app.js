@@ -1,0 +1,168 @@
+import { BOARD, GROUPS, COLORS, EVENTS, RULES } from "../game/board.js";
+import { createGame, applyAction, currentPlayer, netWorth, ranking, ownsGroup, upgradeCost, rentFor, assertState, randomSeed, cleanName } from "../game/engine.js";
+import { botAction } from "../game/bots.js";
+import { RoomSession } from "../network/rtc.js";
+import { initializePlatform, loadingComplete, gameplay, roomInfo, inviteLink, happyTime } from "../platform/crazygames.js";
+import { icon, avatar, escapeHTML as esc } from "./icons.js";
+const money=n=>new Intl.NumberFormat('fr-FR').format(n);
+const SAVE='dicestrict:casual:v2',SETTINGS='dicestrict:settings:v1';
+const $=s=>document.querySelector(s);
+const safeRead=key=>{try{return JSON.parse(localStorage.getItem(key)??'null');}catch{return null;}};
+const safeWrite=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
+const dies=[[4],[0,8],[0,4,8],[0,2,6,8],[0,2,4,6,8],[0,2,3,5,6,8]];
+const die=n=>`<span class="mini-die" aria-label="Dé : ${n}">${Array.from({length:9},(_,i)=>`<i class="${dies[n-1].includes(i)?'on':''}"></i>`).join('')}</span>`;
+class App {
+  constructor(root){
+    this.root=root;this.localId='you';this.selected=1;this.tab='players';this.busy=false;this.dialogKind=null;this.finishedId=null;this.session=null;this.room=null;
+    const preferences=safeRead(SETTINGS);this.settings={sound:preferences?.sound===true,reduced:preferences?.reduced===true||matchMedia('(prefers-reduced-motion: reduce)').matches,quality:preferences?.quality==='low'?'low':'high',name:cleanName(preferences?.name??'Vous'),rounds:12};
+    try{const saved=safeRead(SAVE);if(saved&&saved.players?.[0]?.id==='you'&&saved.phase!=='finished')this.state=assertState(saved);}catch{}
+    this.state??=this.freshGame();this.mount();this.render();this.sceneReady=this.initScene();this.bind();this.scheduleBot();this.initPlatform();
+  }
+  freshGame(){return createGame([{id:'you',name:this.settings.name,bot:false},{id:'bot-1',name:'Nova',bot:true},{id:'bot-2',name:'Sacha',bot:true},{id:'bot-3',name:'Milo',bot:true}],randomSeed(),{rounds:this.settings.rounds});}
+  mount(){this.root.innerHTML=`<main class="app-shell">
+    <header class="topbar"><div class="top-left"><button class="brand" data-ui="about" aria-label="À propos de Dicestrict"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTkiIGZpbGw9IiMyNTRlNDIiLz48cmVjdCB4PSIxNyIgeT0iMTUiIHdpZHRoPSIzMyIgaGVpZ2h0PSIzMyIgcng9IjEwIiB0cmFuc2Zvcm09InJvdGF0ZSgxMiAzMiAzMikiIGZpbGw9IiNkZWVkYWIiLz48ZyBmaWxsPSIjMjU0ZTQyIj48Y2lyY2xlIGN4PSIyNSIgY3k9IjI0IiByPSIzIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSIyNyIgcj0iMyIvPjxjaXJjbGUgY3g9IjMyIiBjeT0iMzMiIHI9IjMiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjQwIiByPSIzIi8+PGNpcmNsZSBjeD0iMzkiIGN5PSI0MyIgcj0iMyIvPjwvZz48L3N2Zz4K" alt=""><div><div class="brand-word">DICE<span>STRICT</span></div><span class="brand-small">ROLL. BUILD. RULE.</span></div></button><nav class="top-tabs" aria-label="Navigation du jeu"><button class="top-tab active" data-ui="play">LE PLATEAU</button><button class="top-tab" data-ui="help">COMMENT JOUER</button></nav></div>
+    <div class="top-right"><button class="icon-button help-header" data-ui="help" aria-label="Règles du jeu">${icon('help',19)}</button><button class="icon-button sound-header" data-ui="sound" aria-label="Activer le son">${icon('mute',18)}</button><button class="icon-button settings-header" data-ui="settings" aria-label="Paramètres">${icon('settings',19)}</button><button class="friends-button" data-ui="multiplayer">${icon('users',17)}<span>Jouer entre amis</span></button><div class="top-avatar">${avatar(0,35)}<div><strong class="header-name">Vous</strong><small>Mode découverte</small></div></div></div></header>
+    <div class="main-grid"><section class="stage" aria-label="Plateau de jeu en trois dimensions"><canvas id="board" tabindex="0" aria-label="Plateau 3D interactif. Glisser pour tourner. La liste des propriétés est disponible dans Mes biens et dans les règles."></canvas><div class="scene-loading">La ville se construit…</div>
+    <div class="city-caption"><div class="eyebrow"><i class="caption-dot"></i> LA COLLECTION AURORA</div><h1>Une ville.<br>Votre <em>empire.</em></h1><p>De grandes ambitions. Un lancer à la fois.</p></div><div class="round-tag">${icon('clock',20)}<div><span>MANCHE EN COURS</span><strong id="round-label">01 <b>/ 12</b></strong></div></div>
+    <div class="camera-tools" role="group" aria-label="Caméra du plateau"><button class="view-button" data-ui="view" aria-label="Vue du dessus">${icon('layers',14)}Vue 3D</button><button data-ui="zoom-out" aria-label="Dézoomer">${icon('minus',15)}</button><button data-ui="zoom-in" aria-label="Zoomer">${icon('plus',15)}</button><button data-ui="reset-view" aria-label="Réinitialiser la caméra">${icon('rotate',14)}</button><button data-ui="board-list" aria-label="Liste accessible de toutes les cases">${icon('building',14)}</button></div>
+    <div class="hint-map">${icon('globe',12)} Glissez pour explorer</div><div id="event" hidden></div><div id="toast" role="status" aria-live="polite" hidden></div><div id="dock" class="action-dock"></div></section>
+    <aside class="sidebar" aria-label="Gestion de votre empire"><section class="capital-block" id="capital"></section><div class="sidebar-divider"></div><section class="table-block"><div class="side-tabs"><div class="tab-group"><button class="side-tab selected" data-ui="players">La table</button><button class="side-tab" data-ui="assets">Mes biens</button></div><span class="player-count">4 JOUEURS</span></div><div id="players"></div></section><section class="property-wrap"><div id="property"></div><div class="property-tip">${icon('help',10)} Sélectionnez une case pour l’inspecter</div></section><section class="activity"><div class="activity-head"><h2>LA VIE DU QUARTIER</h2><button data-ui="history">Tout voir ${icon('chevron',10)}</button></div><div id="activity"></div></section></aside></div>
+    <footer class="status-bar"><span id="connection-status"><i class="connection-dot"></i> Partie locale · 3 adversaires IA</span><span class="status-brand">UNE CRÉATION ORIGINALE · M&G GROUP</span><span>${icon('shield',10)} Amical · sans récompenses de compte</span></footer></main>
+    <dialog id="modal" class="modal" aria-labelledby="modal-title"><div class="modal-head"><div><div class="eyebrow">DICESTRICT</div><h2 id="modal-title"></h2></div><button class="icon-button" data-ui="close" aria-label="Fermer la fenêtre">${icon('close',17)}</button></div><div id="modal-body" class="modal-body"></div></dialog>`;
+  }
+  async initScene(){try{const {BoardScene}=await Promise.resolve().then(()=>require("../scene/board-scene.js"));this.scene=new BoardScene($('#board'),id=>this.select(id),message=>this.sceneError(message));this.scene.configure(this.settings);this.scene.setState(this.state);this.scene.setSelected(this.selected);$('.scene-loading')?.remove();}catch(e){this.sceneError(e.message);}}
+  sceneError(message){$('.scene-loading')?.remove();let fallback=$('.scene-error');if(!fallback){fallback=document.createElement('div');fallback.className='scene-error';$('.stage').append(fallback);}fallback.innerHTML=`${icon('globe',30)}<p>${esc(message)}</p><p>Le mode accessible permet de continuer à jouer.</p><div class="fallback-grid">${BOARD.map(t=>`<button data-tile="${t.id}" style="--tile:${t.color}">${esc(t.name)}</button>`).join('')}</div>`;}
+  async initPlatform(){
+    const platform=await initializePlatform({onSettings:settings=>{this.platformMuted=Boolean(settings.muteAudio);if(this.platformMuted)this.audio?.suspend();},onInvite:code=>this.joinInvite(code)});this.platform=platform;
+    if(platform.user?.username){this.settings.name=cleanName(platform.user.username);if(!this.session&&this.state.revision===0){this.state.players[0].name=this.settings.name;this.render();}}
+    await this.sceneReady;loadingComplete();
+    const code=platform.room??new URLSearchParams(location.search).get('room');
+    if(code&&/^[A-Z2-9]{8}$/.test(code))this.joinInvite(code);
+    else if(platform.instant){this.openMultiplayer();await this.connectRoom('create');}
+    else gameplay(!$('#modal').open&&this.state.phase!=='finished');
+  }
+  joinInvite(code){if(!/^[A-Z2-9]{8}$/.test(code)||this.room?.code===code||this.connecting)return;this.session?.leave();this.session=null;this.room=null;this.networkError=null;roomInfo(null,false);this.startSolo();this.openMultiplayer(code);this.connectRoom('join');}
+  bind(){
+    this.root.addEventListener('click',e=>{const target=e.target.closest('button');if(!target)return;if(target.hasAttribute('data-tile')){this.select(Number(target.dataset.tile));if(this.dialogKind==='board-list')this.closeModal();return;}
+      const action=target.dataset.game;if(action){this.act({type:action,...(target.dataset.lot!==undefined?{tile:Number(target.dataset.lot)}:{})});return;}
+      if(target.dataset.ui)this.handle(target.dataset.ui);});
+    $('#modal').addEventListener('cancel',()=>{this.dialogKind=null;this.scheduleBot();gameplay(!document.hidden&&!this.session?.paused&&this.state.phase!=='finished');});
+    document.addEventListener('keydown',e=>{if(e.code==='Space'&&!$('#modal').open&&!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)){e.preventDefault();const button=$('#dock button[data-game]:not(:disabled)');button?.click();}});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)this.audio?.suspend();else this.scheduleBot();});
+    window.addEventListener('pagehide',()=>{if(!this.session)safeWrite(SAVE,this.state);});
+  }
+  handle(action){
+    if(action==='help')this.showHelp();else if(action==='settings')this.showSettings();else if(action==='about')this.showAbout();else if(action==='play')$('#board').focus();
+    else if(action==='close')this.closeModal();else if(action==='sound'){this.settings.sound=!this.settings.sound;safeWrite(SETTINGS,this.settings);this.updateSound();this.chime('buy');if(this.dialogKind==='settings')this.showSettings();}
+    else if(action==='reduced'){this.settings.reduced=!this.settings.reduced;this.scene?.configure(this.settings);safeWrite(SETTINGS,this.settings);this.showSettings();}
+    else if(action==='quality'){this.settings.quality=this.settings.quality==='high'?'low':'high';this.scene?.configure(this.settings);safeWrite(SETTINGS,this.settings);this.showSettings();}
+    else if(action==='new-game')this.confirmNew();else if(action==='confirm-new'){this.startSolo();this.closeModal();}
+    else if(action==='view'){this.topView=!this.topView;this.scene?.view(this.topView?'top':'reset');$('.view-button').innerHTML=`${icon('layers',14)}${this.topView?'Vue du dessus':'Vue 3D'}`;}
+    else if(action==='zoom-in')this.scene?.view('in');else if(action==='zoom-out')this.scene?.view('out');else if(action==='reset-view'){this.topView=false;this.scene?.view('reset');$('.view-button').innerHTML=`${icon('layers',14)}Vue 3D`;}
+    else if(action==='players'||action==='assets'){this.tab=action;this.renderPlayers();}
+    else if(action==='history')this.showHistory();else if(action==='board-list')this.showBoardList();
+    else if(action==='multiplayer')this.room?this.showLobby():this.openMultiplayer();
+    else if(action==='create-room')this.connectRoom('create');else if(action==='join-room')this.connectRoom('join');
+    else if(action==='start-room'){try{this.session.start(this.settings.rounds);roomInfo(this.room.code,false);}catch(e){this.toast(e.message,true);}}
+    else if(action==='copy-room')this.copyInvite();else if(action==='leave-room'){this.session?.leave();this.session=null;this.room=null;this.networkError=null;roomInfo(null,false);this.startSolo();this.closeModal();}
+    else if(action==='results')this.showResults();else if(action==='rematch'){if(this.session){if(this.session.isHost)this.session.start(this.settings.rounds);else this.toast('L’hôte peut lancer la revanche.');}else{this.startSolo();this.closeModal();}}
+    else if(action==='resume'){this.closeModal();this.scheduleBot();}
+  }
+  updateSound(){const b=$('.sound-header');b.innerHTML=icon(this.settings.sound?'sound':'mute',18);b.setAttribute('aria-label',this.settings.sound?'Couper le son':'Activer le son');}
+  render(){
+    const s=this.state,p=s.players.find(q=>q.id===this.localId)??s.players[0],index=s.players.findIndex(q=>q.id===p.id),owned=s.properties.filter(x=>x.owner===p.id).length,groups=GROUPS.filter((_,i)=>ownsGroup(s,p.id,i)).length;
+    $('#capital').innerHTML=`<div><div class="capital-header"><span class="eyebrow">VOTRE CAPITAL</span><span class="casual-badge">${icon('coin',10)} Crédits de partie</span></div><div class="capital-amount">${money(p.cash)}<span class="coin-symbol">₡</span></div></div><div class="capital-meta">${icon('building',12)}<b>${owned}</b> propriété${owned>1?'s':''}<span>·</span><b>${groups}</b> quartier${groups>1?'s':''}</div>`;
+    $('.header-name').textContent=p.name;$('#round-label').innerHTML=`${String(s.round).padStart(2,'0')} <b>/ ${s.maxRounds}</b>`;
+    $('.player-count').textContent=`${s.players.length} JOUEURS`;this.renderPlayers();this.renderProperty();this.renderDock();this.updateSound();
+    $('#activity').innerHTML=s.log.slice(0,3).map(l=>`<div class="log-row ${l.kind}">${esc(l.text)}</div>`).join('');
+    $('#connection-status').innerHTML=this.room?`<i class="connection-dot"></i> Salon ${esc(this.room.code)} · ${this.session?.isHost?'Vous hébergez':'Connexion directe'}`:`<i class="connection-dot"></i> Partie locale · ${s.players.filter(q=>q.bot).length} adversaires IA`;
+    const event=$('#event');if(s.event!==null&&s.turn===index&&!this.busy){const card=EVENTS[s.event];event.hidden=false;event.className='event-banner';event.innerHTML=`<strong>${esc(card.title)} <b>${card.amount>0?'+':''}${card.amount} ₡</b></strong><p>${esc(card.text)}</p>`;}else event.hidden=true;
+  }
+  renderPlayers(){
+    const s=this.state;document.querySelectorAll('.side-tab').forEach(b=>b.classList.toggle('selected',b.dataset.ui===this.tab));
+    if(this.tab==='assets'){
+      const lots=BOARD.filter(t=>s.properties[t.id].owner===this.localId);
+      $('#players').innerHTML=lots.length?`<div class="owned-list">${lots.map(t=>`<button data-tile="${t.id}" style="--tile:${t.color}"><i class="property-pip"></i>${esc(t.name)}<small>${s.properties[t.id].mortgaged?'Hyp.':`Niv. ${s.properties[t.id].level}`}</small></button>`).join('')}</div>`:`<div class="empty-assets">${icon('building',30)}<strong>Tout commence ici.</strong><span>Lancez les dés pour acquérir<br>votre premier terrain.</span></div>`;return;
+    }
+    $('#players').innerHTML=s.players.map((p,i)=>`<div class="player-row ${currentPlayer(s).id===p.id&&s.phase!=='finished'?'current':''} ${p.bankrupt?'bankrupt':''}">${avatar(i,34)}<div class="player-info"><strong>${esc(p.name)}<span>${p.id===this.localId?'VOUS':p.bot?'IA':'JOUEUR'}</span></strong><small>${p.bankrupt?'Faillite':`${s.properties.filter(x=>x.owner===p.id).length} biens · ${money(netWorth(s,p.id))} de patrimoine`}</small></div><div class="player-cash">${money(p.cash)}<span>₡</span></div>${currentPlayer(s).id===p.id&&s.phase!=='finished'?'<i class="turn-bullet"></i>':''}</div>`).join('');
+  }
+  renderProperty(){
+    const s=this.state,t=BOARD[this.selected],prop=s.properties[t.id],owner=s.players.find(p=>p.id===prop.owner),own=prop.owner===this.localId,canManage=currentPlayer(s).id===this.localId&&['roll','end'].includes(s.phase)&&!this.busy&&!this.session?.paused;
+    const status=owner?(prop.mortgaged?'Hypothéqué':`À ${owner.id===this.localId?'vous':owner.name}`):t.kind==='lot'?'Disponible':'LA VIE À AURORA';
+    let actions='';if(own&&t.kind==='lot'){
+      const legal=type=>{try{applyAction(s,this.localId,{type,tile:t.id});return canManage;}catch{return false;}};
+      const controls=prop.mortgaged?[['REDEEM',`Lever · ${Math.ceil(t.price*.55)}`]]:[['UPGRADE',`Développer · ${upgradeCost(t.id)}`],...(prop.level?[['SELL_LEVEL','Revendre un niveau']]:[['MORTGAGE','Hypothéquer']])];
+      actions=`<div class="property-actions">${controls.map(([type,label])=>`<button data-game="${type}" data-lot="${t.id}" ${legal(type)?'':'disabled'} title="Les constructions nécessitent un quartier complet et équilibré.">${label}</button>`).join('')}</div>`;
+    }
+    const price=t.kind==='lot'?money(t.price):({start:'+220',event:'Surprise',tax:'−90',park:'+70',transit:'+60',grant:'+100',audit:'−80'})[t.kind];
+    $('#property').innerHTML=`<article class="property-card" style="--tile:${t.color}"><div class="property-label"><span><i></i>${t.kind==='lot'?esc(GROUPS[t.group].name.toUpperCase()):'CASE SPÉCIALE'}</span>${icon(t.kind==='lot'?'building':t.kind==='park'?'leaf':'star',15)}</div><div class="property-top"><h2 class="property-title">${esc(t.name)}</h2><div class="property-art" aria-hidden="true"><i class="tower"></i><i class="tower"></i><i class="tower"></i></div></div><p class="property-subtitle">${esc(status)}${owner&&!prop.mortgaged?` · Niveau ${prop.level}`:''}</p><div class="property-numbers"><div><span>${t.kind==='lot'?'PRIX D’ACHAT':'EFFET'}</span><strong>${price} ${t.kind==='event'?'':'<small>₡</small>'}</strong></div><div><span>${t.kind==='lot'?'LOYER ACTUEL':'CASE'}</span><strong>${t.kind==='lot'?money(prop.owner?rentFor(s,t.id):t.rent):String(t.id+1).padStart(2,'0')} ${t.kind==='lot'?'<small>₡</small>':''}</strong></div></div>${actions}</article>`;
+  }
+  renderDock(){
+    const s=this.state,p=currentPlayer(s),yourTurn=p.id===this.localId,waiting=!yourTurn||this.busy||Boolean(this.session?.paused),idx=s.players.indexOf(p);
+    let title=yourTurn?'À vous de jouer':`${p.name} joue son tour`,sub='Lancez les dés. Votre premier quartier vous attend.',button='';
+    if(s.phase==='finished'){title='Aurora a trouvé son nouveau visage.';sub='Découvrez le classement de la partie.';button=`<button class="action-main lime" data-ui="results">${icon('crown',18)}Voir les résultats</button>`;}
+    else if(this.session?.paused){title='La partie est suspendue';sub='La liaison avec un joueur est interrompue.';button=`<button class="action-main" data-ui="multiplayer">Ouvrir le salon</button>`;}
+    else if(this.busy){title='Les dés en sont jetés…';sub=`${p.name} explore Aurora.`;button=`<button class="action-main" disabled><span class="busy-dots">•••</span> En route</button>`;}
+    else if(s.phase==='auction') {
+      const a=s.auction, offer=a.highBid+RULES.auctionStep;
+      title=`Enchère · ${a.highBid} ₡`;sub=`${BOARD[a.tile].name} · ${yourTurn?'À vous de surenchérir':p.name+' décide'}`;
+      button=yourTurn?`<button class="action-secondary" data-game="PASS">Me retirer</button><button class="action-main lime" data-game="BID" ${p.cash<offer?'disabled':''}>${icon('building',17)}Offrir ${offer} ₡</button>`:`<button class="action-main" disabled>${esc(p.name)} réfléchit…</button>`;
+    }
+    else if(!yourTurn){title=p.bot?`${p.name} prépare son coup`:`Au tour de ${p.name}`;sub=p.bot?'Une ville, plusieurs ambitions.':'La partie est synchronisée entre les joueurs.';button=`<button class="action-main" disabled><span class="busy-dots">•••</span> ${p.bot?'Réflexion…':'À son tour'}</button>`;}
+    else if(s.phase==='roll'){button=`<button class="action-main lime" data-game="ROLL">${icon('dice',19)}Lancer les dés <kbd>ESPACE</kbd></button>`;}
+    else if(s.phase==='buy'){const t=BOARD[p.position];title='Un beau quartier commence ici.';sub=`${t.name} est disponible pour ${t.price} crédits.`;button=`<button class="action-secondary" data-game="SKIP">Aux enchères</button><button class="action-main lime" data-game="BUY" ${p.cash<t.price?'disabled':''}>${icon('building',17)}Acheter · ${t.price}</button>`;}
+    else{title='À vous de voir plus grand.';sub='Gérez vos biens ou passez au joueur suivant.';button=`<button class="action-main" data-game="END">Terminer le tour ${icon('arrow',17)}</button>`;}
+    $('#dock').classList.toggle('waiting',waiting);$('#dock').innerHTML=`<div class="turn-portrait">${avatar(idx,44)}<i class="turn-indicator"></i></div><div class="turn-copy"><small>${s.phase==='finished'?'FIN DE PARTIE':yourTurn?'VOTRE TOUR':`AU TOUR DE ${esc(p.name.toUpperCase())}`}</small><strong>${esc(title)}</strong><p>${esc(sub)}</p></div><div class="dice-result">${s.dice.map(die).join('')}</div><div class="action-buttons">${button}</div>`;
+  }
+  select(id){if(!Number.isInteger(id)||id<0||id>=BOARD.length)return;this.selected=id;this.scene?.setSelected(id);this.renderProperty();}
+  act(action){if(this.busy)return;try{gameplay(true);this.chime(action.type==='ROLL'?'roll':'buy');if(this.session)this.session.act(action);else this.accept(applyAction(this.state,this.localId,action));}catch(e){this.toast(e.message,true);}}
+  accept(state){
+    clearTimeout(this.botTimer);clearTimeout(this.busyTimer);const moved=state.players.some((p,i)=>p.position!==this.state.players[i]?.position),newMatch=state.id!==this.state.id;
+    this.state=state;if(this.room)roomInfo(this.room.code,false);this.busy=moved&&!this.settings.reduced&&!newMatch&&state.phase!=='finished';
+    if(state.pending!==null)this.selected=state.pending;
+    this.scene?.setState(state);this.scene?.setSelected(this.selected);if(!this.session)safeWrite(SAVE,state);
+    if(['lobby','multiplayer','results'].includes(this.dialogKind))this.closeModal();
+    this.render();
+    if(state.phase==='finished'){
+      gameplay(false);if(this.finishedId!==state.id){this.finishedId=state.id;happyTime();setTimeout(()=>this.showResults(),700);}return;
+    }
+    if(this.busy)this.busyTimer=setTimeout(()=>{this.busy=false;this.render();this.scheduleBot();},1350);
+    else this.scheduleBot();
+  }
+  scheduleBot(){clearTimeout(this.botTimer);if(this.busy||this.state.phase==='finished'||(this.session&&!this.session.isHost)||this.session?.paused||(!this.session&&($('#modal').open||document.hidden)))return;
+    const p=currentPlayer(this.state);if(!p.bot)return;const revision=this.state.revision;
+    this.botTimer=setTimeout(()=>{if(this.state.revision!==revision)return;const action=botAction(this.state);if(!action)return;try{if(this.session)this.session.commit(p.id,action);else this.accept(applyAction(this.state,p.id,action));}catch(e){this.toast(e.message,true);}},this.settings.reduced?280:750);
+  }
+  startSolo(){clearTimeout(this.botTimer);clearTimeout(this.busyTimer);this.networkError=null;this.localId='you';this.finishedId=null;this.busy=false;this.selected=1;this.state=this.freshGame();this.scene?.setState(this.state);this.scene?.setSelected(1);safeWrite(SAVE,this.state);this.render();}
+  toast(message,error=false){const t=$('#toast');t.textContent=message;t.hidden=false;t.className=`toast ${error?'error':''}`;clearTimeout(this.toastTimer);this.toastTimer=setTimeout(()=>{t.hidden=true;},5000);}
+  modal(kind,title,body){this.dialogKind=kind;$('#modal-title').textContent=title;$('#modal-body').innerHTML=body;if(!$('#modal').open)$('#modal').showModal();if(!this.session)clearTimeout(this.botTimer);gameplay(false);}
+  closeModal(){this.dialogKind=null;$('#modal').close();this.scheduleBot();gameplay(!document.hidden&&!this.session?.paused&&this.state.phase!=='finished');}
+  showHelp(){this.modal('help','À vous de bâtir la suite.',`<div class="help-step"><span>01</span><div><strong>Lancez, explorez, achetez.</strong><p>Vous commencez avec 1 800 crédits. Achetez les terrains libres sur lesquels vous arrivez. Chaque passage au départ vous rapporte 220 crédits.</p></div></div><div class="help-step"><span>02</span><div><strong>Le quartier fait la différence.</strong><p>Réunissez les deux propriétés d’une couleur pour doubler leurs loyers. Développez-les jusqu’au niveau 3, de façon équilibrée. Cliquez sur un terrain à vous pour le gérer.</p></div></div><div class="help-step"><span>03</span><div><strong>Devenez l’empire d’Aurora.</strong><p>Après ${this.state.maxRounds} manches, le plus grand patrimoine gagne : capital + valeur des terrains + coût des constructions − dettes hypothécaires. En cas d’égalité, la victoire est partagée.</p></div></div><div class="modal-note">Hypothèque : 50 % du prix d’achat, puis 55 % pour la lever. Revente d’un niveau : 50 % de son coût. Les loyers peuvent déclencher une liquidation automatique puis une faillite. Une faillite remet les terrains sur le marché.<br><br>Un achat refusé ouvre une enchère par paliers de 20 crédits. Se retirer est définitif pour cette enchère ; seul le gagnant paie. Les échanges entre joueurs ne sont pas encore disponibles. Les crédits sont fictifs et ne quittent pas la partie.</div><button class="action-main lime" data-ui="resume">C’est parti ${icon('arrow',17)}</button>`);}
+  showSettings(){this.modal('settings','À votre rythme.',`<div class="option-row"><span>Effets sonores</span><button data-ui="sound">${this.settings.sound?'Activés':'Désactivés'}</button></div><div class="option-row"><span>Animations réduites</span><button data-ui="reduced">${this.settings.reduced?'Activées':'Désactivées'}</button></div><div class="option-row"><span>Qualité graphique</span><button data-ui="quality">${this.settings.quality==='high'?'Élevée · ombres':'Légère · sans ombres'}</button></div><p>Glissez sur la ville pour changer d’angle. Utilisez la molette ou les boutons + et − pour zoomer. La touche Espace déclenche l’action principale.</p><button class="action-main" data-ui="board-list">${icon('building',17)}Toutes les cases</button><button class="action-secondary" data-ui="new-game">Recommencer une partie locale</button>`);}
+  confirmNew(){if(this.session){this.toast('Quittez d’abord le salon multijoueur.',true);return;}this.modal('confirm-new','Un nouveau départ ?',`<p>Votre partie locale en cours sera remplacée. Vos paramètres seront conservés.</p><button class="action-main lime" data-ui="confirm-new">Recommencer avec les IA</button><button class="action-secondary" data-ui="close">Continuer la partie actuelle</button>`);}
+  showAbout(){this.modal('about','DICESTRICT.',`<p><strong>Roll. Build. Rule.</strong><br>Une ville miniature, de grandes ambitions et une course au patrimoine pour 2 à 4 joueurs.</p><p>Création originale pour M&G Group. Alpha jouable 0.2.0 : rendu WebGL 2, logique déterministe et parties amicales en WebRTC.</p><div class="modal-note">Les parties locales et amicales ne donnent aucune XP et aucune monnaie de compte. Une économie permanente nécessite une partie validée par le service arbitre : aucun résultat envoyé librement par le client n’est récompensé.</div><button class="action-main lime" data-ui="close">Découvrir Aurora ${icon('arrow',17)}</button>`);}
+  showBoardList(){this.modal('board-list','Explorez les quartiers.',`<p>Une alternative accessible au plateau 3D. Sélectionnez une case pour afficher son prix, son loyer et ses actions de gestion.</p><div class="owned-list" style="max-height:390px">${BOARD.map(t=>`<button data-tile="${t.id}" style="--tile:${t.color}"><i class="property-pip"></i>${String(t.id+1).padStart(2,'0')} · ${esc(t.name)}<small>${t.kind==='lot'?`${t.price} ₡`:'✦'}</small></button>`).join('')}</div>`);}
+  showHistory(){this.modal('history','La vie du quartier.',`<div class="modal-scroller">${this.state.log.map(l=>`<div class="log-row ${l.kind}">${esc(l.text)}</div>`).join('')}</div><div class="modal-note">Les 30 dernières actions de cette partie.</div>`);}
+  openMultiplayer(code=''){this.modal('multiplayer','Mieux, entre amis.',`<p>Créez un salon privé. Votre navigateur héberge la partie et les autres joueurs s’y connectent directement. Les places libres seront occupées par des IA.</p><label for="nickname">Votre nom dans le quartier</label><input id="nickname" maxlength="20" autocomplete="nickname" value="${esc(this.settings.name)}"><button class="action-main lime" data-ui="create-room">${icon('users',18)}Créer un salon</button><div class="modal-split">OU REJOINDRE VOS AMIS</div><label for="room-input">Code du salon</label><input id="room-input" maxlength="8" placeholder="ABCDEFGH" value="${esc(code)}" autocapitalize="characters" spellcheck="false"><button class="action-main" data-ui="join-room">Rejoindre le salon ${icon('arrow',17)}</button><div class="modal-note">Partie amicale sans récompenses permanentes. L’hôte doit garder son onglet ouvert. Un service de signalisation est nécessaire ; certains réseaux nécessitent aussi un relais TURN.</div><div id="network-error" role="alert"></div>`);}
+  async connectRoom(kind){
+    if(this.connecting)return;
+    const name=cleanName($('#nickname')?.value),code=($('#room-input')?.value??'').trim().toUpperCase();if(kind==='join'&&!/^[A-Z2-9]{8}$/.test(code)){this.toast('Saisissez les 8 caractères du salon.',true);return;}
+    this.connecting=true;this.networkError=null;this.settings.name=name;safeWrite(SETTINGS,this.settings);document.querySelectorAll('[data-ui="create-room"],[data-ui="join-room"]').forEach(b=>b.disabled=true);
+    const session=new RoomSession({onLobby:room=>{this.room=room;if(!session.state)this.showLobby();},onState:state=>{this.session=session;this.localId=session.localId;this.accept(state);},onError:message=>this.toast(message,true),onClosed:message=>{this.networkError=message;this.renderDock();this.showLobby();}});
+    this.session=session;clearTimeout(this.botTimer);
+    try{await session.connect(kind,name,code);this.localId=session.localId;roomInfo(this.room.code,true);this.showLobby();}
+    catch(e){session.leave();this.session=null;this.room=null;this.localId='you';this.openMultiplayer(code);const error=$('#network-error');if(error){error.className='connection-error';error.textContent=e.message;}this.scheduleBot();}
+    finally {this.connecting=false;}
+  }
+  showLobby(){
+    if(!this.room||!this.session)return;const r=this.room,canStart=r.isHost&&r.members.every(m=>m.ready)&&!this.session.paused&&(!this.session.state||this.session.state.phase==='finished');roomInfo(r.code,!this.session.state&&r.members.length<4&&!this.session.paused);
+    this.modal('lobby','Votre table vous attend.',`${this.networkError?`<div class="connection-error">${esc(this.networkError)}</div>`:''}<p>Partagez le code du salon ou copiez le lien d’invitation. Jusqu’à 4 joueurs peuvent rejoindre la même ville.</p><div class="room-code"><strong data-testid="room-code">${esc(r.code)}</strong><button class="icon-button" data-ui="copy-room" aria-label="Copier le lien d’invitation">${icon('copy',18)}</button></div>${r.members.map((m,i)=>`<div class="lobby-member">${avatar(i,35)}<strong>${esc(m.name)} ${m.id===r.hostId?'· hôte':''}</strong><span>${m.ready?'Connecté':'Connexion…'}</span></div>`).join('')}<div class="modal-note">${4-r.members.length} place${4-r.members.length>1?'s':''} libre${4-r.members.length>1?'s':''} : des IA complèteront la table au lancement. Les récompenses de compte sont désactivées.</div>${r.isHost?`<button class="action-main lime" data-ui="start-room" ${canStart?'':'disabled'}>${icon('dice',18)}${this.session.state?'Recommencer une partie':'Lancer la partie'}</button>`:'<button class="action-main" disabled>En attente de l’hôte…</button>'}<button class="action-secondary" data-ui="leave-room">Quitter le salon</button>`);
+  }
+  async copyInvite(){try{const url=await inviteLink(this.room.code);await navigator.clipboard.writeText(url);this.toast('Lien d’invitation copié.');}catch{this.toast(`Code à partager : ${this.room.code}`);}}
+  showResults(){const s=this.state;if(s.phase!=='finished')return;const winners=s.winners.map(id=>s.players.find(p=>p.id===id).name).join(' & ');this.modal('results','La ville a son empire.',`<div class="winner">${icon('crown',43)}<h3>${esc(winners)}</h3><p>${s.winners.length>1?'Une victoire partagée.':'Le plus grand patrimoine d’Aurora.'}</p></div>${ranking(s).map((p,i)=>`<div class="winner-row"><span>${i+1}.</span>${avatar(s.players.indexOf(p),34)}<strong>${esc(p.name)}</strong><span>${money(netWorth(s,p.id))} ₡</span></div>`).join('')}<div class="modal-note">Partie amicale : aucune XP ni monnaie permanente attribuée. Ces récompenses nécessitent une validation serveur.</div><button class="action-main lime" data-ui="rematch" ${this.session&&!this.session.isHost?'disabled':''}>${icon('rotate',17)}La revanche ?</button>`);}
+  chime(type){if(!this.settings.sound||document.hidden||this.platformMuted)return;try{this.audio??=new(window.AudioContext||window.webkitAudioContext)();this.audio.resume();const start=this.audio.currentTime;
+    for(let i=0;i<(type==='roll'?4:2);i++){const o=this.audio.createOscillator(),g=this.audio.createGain();o.type=type==='roll'?'triangle':'sine';o.frequency.value=type==='roll'?160+i*100:520+i*140;g.gain.setValueAtTime(.0001,start+i*.055);g.gain.exponentialRampToValueAtTime(.035,start+i*.055+.008);g.gain.exponentialRampToValueAtTime(.0001,start+i*.055+.10);o.connect(g);g.connect(this.audio.destination);o.start(start+i*.055);o.stop(start+i*.055+.12);}}
+    catch{/* Audio is optional; a blocked audio context must never interrupt gameplay. */}}
+}
+
+export { App };
