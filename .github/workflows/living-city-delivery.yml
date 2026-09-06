@@ -1,0 +1,19 @@
+name: Living city source checkpoint
+on:
+  push:
+    branches: ['feat/living-city-0-4']
+    paths: ['.github/workflows/living-city-delivery.yml']
+permissions:
+  contents: read
+jobs:
+  checkpoint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - run: git archive --format=tar -o source.tar HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicestrict-source-checkpoint
+          path: source.tar
+          retention-days: 2
