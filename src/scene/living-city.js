@@ -1,3 +1,5 @@
+import { Districts, DISTRICT_LOTS } from './districts.js';
+import { Marina, MARINA_LOTS } from './marina.js';
 import { Geometry } from './geometry.js';
 import { model } from './math.js';
 import { deriveCity, cityTransitions, squareRoute, trafficPosition, cityBudget } from './city-state.js';
@@ -36,9 +38,10 @@ function terrace(g,x,z,color) {
   g.cylinder([x,.72,z],.014,.53,ink,6);
   g.cylinder([x,.97,z],.31,.07,color,10,.08);
 }
-function parcelGeometry(city) {
+function parcelGeometry(city,legacyDistricts=false) {
   const g=new Geometry();
   for(const p of city.parcels) {
+    if(!legacyDistricts&&DISTRICT_LOTS.includes(p.id))continue;
     const {x,z}=p;
     g.box([x,.43,z],[.96,.09,.95],p.owner?'#d7dfcc':'#a8c8a8',.045);
     if(!p.owner) {
@@ -48,6 +51,7 @@ function parcelGeometry(city) {
       g.block([x+.24,.66,z-.22],[.21,.14,.018],p.districtColor);
       continue;
     }
+    if(MARINA_LOTS.includes(p.id))continue; // Dedicated volumetric waterfront variants.
     const color=p.mortgaged?'#a8b6af':p.districtColor;
     const heights=[0,.38,.82,1.4,2.05];
     tower(g,x-.08,z-.06,p.tier===4?.66:.59,.59,heights[p.tier],color,p.active);
@@ -82,14 +86,16 @@ function infrastructure() {
     }
   }
   // Civic park and fountain remain public; player buildings grow around them.
-  g.box([.1,.43,.2],[4.9,.12,4.75],'#b2cbb2',.22);
+  // Keep the civic park; reserve only its southwest corner for the marina basin.
+  g.box([1.015,.43,.2],[3.07,.12,4.75],'#b2cbb2',.10);
+  g.box([-1.45,.43,-.84],[1.80,.12,2.67],'#b2cbb2',.10);
   g.block([0,.5,.30],[4.6,.04,.43],'#e4dfcc');
   g.block([.45,.505,-.05],[.44,.04,4.5],'#e4dfcc');
   g.cylinder([1.65,.53,1.45],.73,.11,stone,28);
   g.cylinder([1.65,.59,1.45],.60,.025,glass,28);
   g.cylinder([1.65,.77,1.45],.11,.36,stone,12,.05);
-  for(const [x,z] of [[-2.1,1],[-1.55,1.1],[-2.0,2],[-.7,1.4],[2.1,-.8],[2.25,-1.8],[1.3,2.15]])tree(g,x,z);
-  terrace(g,-1.3,1.85,'#e9b387');
+  for(const [x,z] of [[2.1,-.8],[2.25,-1.8],[1.3,2.15]])tree(g,x,z);
+  // The former park terrace is replaced by the marina's modelled cafe furniture.
   // Small civic pavilion, intentionally not linked to ownership.
   tower(g,1.3,-1.65,.70,.78,.73,stone,true);
   g.cylinder([1.3,1.35,-1.65],.34,.20,'#89aa95',12,.07);
@@ -161,7 +167,7 @@ function neonSign(text,w=1.22) {
 class LivingCity {
   constructor(renderer) {
     this.renderer=renderer;this.city=null;this.elapsed=0;this.cranes=[];this.celebrations=[];this.quality='high';this.reduced=false;this.living=true;
-    this.staticMesh=renderer.mesh(infrastructure());
+    this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);
     this.cars=['#db947e','#e0c477','#79b2bb','#e6e3d5'].map(c=>renderer.mesh(vehicle(c)));
     this.bus=renderer.mesh(vehicle('#dcb875','bus'));this.ambulance=renderer.mesh(vehicle('#f1f1df'));
     this.people=['#567d77','#de917b','#b5a2ce','#d9b16b'].map(c=>renderer.mesh(person(c)));
@@ -171,12 +177,12 @@ class LivingCity {
     const water=new Geometry();water.sphere([0,0,0],.028,'#c2e6dc',6,4);this.water=renderer.mesh(water);
     const siren=new Geometry();siren.material=3;siren.block([0,0,0],[.12,.04,.06],'#88cfe5');this.siren=renderer.mesh(siren);
   }
-  configure(settings) { Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
+  configure(settings) { this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
   setState(s) {
     const next=deriveCity(s),reset=this.gameId!==s.id;
     if(!reset&&this.city?.signature===next.signature)return;
     const changes=cityTransitions(reset?null:this.city,next);
-    this.gameId=s.id;this.city=next;
+    this.gameId=s.id;this.city=next;this.marina.setCity(next);this.districts.setCity(next);
     if(reset){this.cranes=[];this.celebrations=[];}
     if(!this.reduced&&this.living) {
       for(const p of changes.construction)this.cranes.push({id:p.id,x:p.x,z:p.z,until:this.elapsed+6});
@@ -187,7 +193,7 @@ class LivingCity {
   }
   objects(seconds,rain=0) {
     this.elapsed=seconds;
-    const out=[{mesh:this.staticMesh}];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
+    const out=[{mesh:this.staticMesh},...this.marina.objects(seconds),...this.districts.objects()];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
     out.push({mesh:this.sign,model:model(-1.25,1.10,-.485),noShadow:true});
     if(!this.city)return out;
     const running=this.living&&!this.reduced,t=running?seconds:0,budget=cityBudget(this.city,this.quality,this.reduced,this.living);
@@ -238,4 +244,4 @@ class LivingCity {
     this.stats.objects=out.length;return out;
   }
 }
-export { LivingCity };
+export { LivingCity, parcelGeometry };

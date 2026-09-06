@@ -112,8 +112,10 @@ class BoardScene {
     const rect=this.canvas.getBoundingClientRect(),aspect=rect.width/Math.max(rect.height,1);
     this.renderer.resize(rect.width,rect.height,Math.min(devicePixelRatio||1,this.renderer.shadows?1.7:1.0));
     const extent=(aspect<1.15?10.1/aspect:9.0)/this.zoom;
-    const eye=[Math.sin(this.angle)*24*Math.cos(this.pitch),Math.sin(this.pitch)*24,Math.cos(this.angle)*24*Math.cos(this.pitch)];
-    this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,[0,.3,0]));
+    const target=this.captureTarget??[0,.3,0];
+    const eye=[target[0]+Math.sin(this.angle)*24*Math.cos(this.pitch),target[1]-.3+Math.sin(this.pitch)*24,target[2]+Math.cos(this.angle)*24*Math.cos(this.pitch)];
+    this.renderer.camera=eye;this.city.marina.selectDetail(rect.height/(2*extent));this.city.districts.selectDetail(rect.height/(2*extent));
+    this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,target));
     const objects=[{mesh:this.staticMesh,model:identity()},...this.city.objects(this.ambientTime,this.renderer.weather)];if(this.ownerMesh)objects.push({mesh:this.ownerMesh});
     if(this.state)for(let i=0;i<this.state.players.length;i++){
       const p=this.state.players[i];if(p.bankrupt)continue;const path=this.paths[i],progress=motionProgress(path,t,this.reduced),total=progress*path.steps,step=Math.floor(total),fraction=total-step;

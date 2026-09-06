@@ -14,7 +14,9 @@
     "test": "node --test tests/*.test.mjs",
     "check": "node scripts/check.mjs",
     "build:lab": "node scripts/build.mjs --lab",
-    "balance": "node scripts/balance.mjs"
+    "balance": "node scripts/balance.mjs",
+    "assets:export": "node scripts/assets/export-marina.mjs && node scripts/assets/export-districts.mjs",
+    "assets:review": "node scripts/assets/build-review.mjs && node scripts/assets/build-district-review.mjs"
   },
   "license": "UNLICENSED"
 }
