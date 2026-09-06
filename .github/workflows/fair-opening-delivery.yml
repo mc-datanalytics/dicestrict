@@ -1,17 +1,17 @@
-name: Fair opening verified delivery
+name: Fair opening source publication
 on:
   push:
     branches: ['feat/fair-opening-playtests']
-    paths: ['.github/fair-opening-transport-*.txt', '.github/workflows/fair-opening-delivery.yml']
+    paths: ['.github/workflows/fair-opening-delivery.yml']
 permissions:
   contents: write
 concurrency:
   group: fair-opening-delivery
   cancel-in-progress: false
 jobs:
-  validate-and-publish:
+  publish-tested-source:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -19,25 +19,22 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-      - name: Apply bounded delivery payload with before and after SHA-256 checks
+      - name: Materialize the exact payload tested in run 34054343253
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           import pathlib, json, base64, gzip, hashlib
-          root=pathlib.Path('.')
-          parts=[root/f'.github/fair-opening-transport-{i}.txt' for i in range(4)]
-          encoded=''.join(p.read_text().strip() for p in parts)
+          encoded=''.join(pathlib.Path(f'.github/fair-opening-transport-{i}.txt').read_text().strip() for i in range(4))
           assert len(encoded)<100000
           raw=gzip.decompress(base64.b64decode(encoded,validate=True))
           assert len(raw)<500000
           assert hashlib.sha256(raw).hexdigest()=='e1e91df35bf5c145329715b46593659893ef1d3aaff2a9b32aca59b6239551a1'
           sha=lambda s:hashlib.sha256(s.encode()).hexdigest()
           for name,patch in json.loads(raw).items():
+              if name=='.github/workflows/ci.yml':
+                  continue # Workflow writes use the authorized connector, never this runner token.
               p=pathlib.Path(name)
               assert not p.is_absolute() and '..' not in p.parts
-              assert p.parts[0] in {'src','scripts','tests'} or name in {'lab.html','package.json','.github/workflows/ci.yml'}
+              assert p.parts[0] in {'src','scripts','tests'} or name in {'lab.html','package.json'}
               if patch['sha'] is None:
                   assert not p.exists(),f'Unexpected existing file {name}'
                   source=patch['content']
@@ -51,35 +48,10 @@ jobs:
               p.parent.mkdir(parents=True,exist_ok=True);p.write_text(source)
               print('Verified',name,patch['out'])
           PY
-      - name: Check, tests and game build
+      - name: Recheck source and build (browser evidence is the prior full run)
+        run: npm run check && npm test && npm run build:lab
+      - name: Publish source only without touching workflow files
         run: |
-          set -euo pipefail
-          npm run check
-          npm test | tee node-tests.txt
-          npm run build
-      - run: pip install playwright==1.57.0
-      - run: python -m playwright install --with-deps chromium
-      - run: python tests/browser.py
-      - run: npm run build:lab
-      - run: python tests/lab_browser.py
-      - name: Complete four-peer UI games and pseudonymized replay (automated, not human)
-        run: python tests/playtest_browser.py
-      - name: Publish validated source on feature branch only
-        run: |
-          git rm .github/fair-opening-transport-*.txt .github/workflows/fair-opening-delivery.yml
-          git add src scripts tests package.json lab.html .github/workflows/ci.yml
-          git -c user.name='M&G Group' -c user.email='119437439+mc-datanalytics@users.noreply.github.com' commit -m 'feat: versioned fair opening, negotiating policies and opt-in local playtest traces'
+          git add src scripts tests package.json lab.html
+          git -c user.name='M&G Group' -c user.email='119437439+mc-datanalytics@users.noreply.github.com' commit -m 'feat: fair opening, negotiating policies and opt-in traces; browser-tested in run 34054343253'
           git push origin HEAD:refs/heads/feat/fair-opening-playtests
-      - name: Capture tested source including uncommitted failed candidates
-        if: always()
-        run: tar -cf tested-source.tar src scripts tests docs README.md CHANGELOG.md SECURITY.md AGENTS.md package.json config.js index.html lab.html .github/workflows/ci.yml
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dicestrict-fair-opening-tests
-          path: |
-            dist/
-            test-results/
-            node-tests.txt
-            tested-source.tar
-          retention-days: 14
