@@ -1,46 +1,44 @@
 # Validation — alpha 0.3.0
 
-## Contrôles de cette révision
+## Résultat vérifié le 6 septembre 2026
 
-Exécuté localement le 6 septembre 2026 : `npm run check`, `npm test`, `npm run build`. **52 tests Node réussis.** Le corpus synthétique comprend 500 parties de référence (44 337 actions) et 300 parties avec mobilité/offres (40 889 actions, 3 207 offres). Les replays sont identiques. Il ne s'agit ni d'avis collectés, ni de tests utilisateurs, ni d'une mesure d'équilibrage.
+Le [run GitHub Actions 34043772081](https://github.com/mc-datanalytics/dicestrict/actions/runs/34043772081) est **réussi**. Le patch contrôlé par empreinte a été appliqué, puis les sources ont été publiées sur la branche uniquement après réussite des tests Node, de la construction et des essais navigateur.
 
-Les scénarios navigateur couvrent maintenant les formats annoncés, la décision de mobilité conservée après rechargement, la négociation non modale qui conserve une saisie, les échanges/contre-offres hors tour sur deux vrais DataChannels, le rendu du bundle HTML autonome et les commandes à 390 px, en plus des contrôles précédents. La validation effective dépend de la conclusion du run GitHub Actions de cette révision et de `test-results/browser-report.json` ; ne pas déduire le succès de l'existence des scripts ou des artefacts.
+- `npm run check` : 24 fichiers JavaScript, syntaxe et imports locaux valides.
+- `npm test` : **52 tests réussis, aucun échec**. Le corpus synthétique comprend 500 parties de référence (44 337 actions) et 300 parties avec mobilité/offres (40 889 actions, 3 207 offres). Les 800 replays sont identiques, soit 85 226 actions vérifiées.
+- `npm run build` : client statique natif et HTML autonome générés. Le HTML autonome testé pèse 150 848 octets avant compression de transport.
+- `tests/browser.py` : **16 contrôles réussis**, rapport `pageErrors: []`.
 
-Le navigateur local de rédaction ne permet pas la navigation sur le serveur de test : les essais réels sont délégués au runner GitHub autorisé. Ils conservent le contrôle strict WebGL2. Les captures servent à vérifier le rendu et la disposition, pas la fluidité sur GPU réel. Les deux contextes WebRTC sont isolés mais sur la même machine ; ils ne valident pas les réseaux publics ou TURN.
+Ces simulations ne sont ni des avis collectés, ni des tests utilisateurs, ni une mesure d'équilibrage. Une réussite fonctionnelle ne prouve pas une meilleure rétention.
+
+## Essais navigateur de 0.3
+
+Environnement : runner GitHub Ubuntu, Chromium / Playwright 1.57.0, WebGL2 via SwiftShader. Les deux contextes WebRTC sont isolés mais sur la même machine. Le test de connexion directe locale ne dépend pas d'un service STUN public.
+
+1. Initialisation WebGL2, image effectivement dessinée et non uniforme, aucune erreur GL remontée.
+2. Achat et sauvegarde locale conservés après rechargement.
+3. Enchère légale via les boutons de l'interface.
+4. Format Blitz, choix explicite après les dés et consommation du jeton conservés après rechargement.
+5. Deux contextes reliés par un véritable DataChannel WebRTC, états identiques après un lancer.
+6. Format choisi par l'hôte visible à l'invité et fixé dans l'état synchronisé.
+7. Panneau de négociation non modal : la table continue et le brouillon reste présent lorsque l'autre joueur agit.
+8. Proposition et acceptation hors tour par l'interface : transfert conjoint de terrains et de crédits sur WebRTC.
+9. Contre-offre par l'interface : inversion des lots, révision des crédits, seuls les termes acceptés sont exécutés.
+10. Revanche synchronisée dans le même salon avec fermeture des résultats.
+11. Départ de l'hôte : suspension du client restant, sans victoire inventée.
+12. Affichage à 390 px sans débordement horizontal et accès à toutes les propriétés.
+13. Commandes de mobilité et panneau de négociation utilisables dans le viewport tactile émulé à 390 px.
+14. HTML autonome généré exécuté en `file://` : initialisation WebGL2, mobilité et panneau de négociation.
+15. Mode de secours jouable sans WebGL.
+16. Aucune exception JavaScript non interceptée dans les parcours desktop/multijoueur et HTML autonome observés.
+
+L'artefact `dicestrict-feedback-build-and-browser-report` (ID 9992484611) a été récupéré. Son rapport et les captures de négociation, de mobilité et du viewport mobile ont été inspectés. Les scénarios de négociation utilisent des états de départ contrôlés pour rendre les achats et échanges reproductibles ; ce ne sont pas des parties humaines observées.
+
+Les artefacts GitHub ont une rétention de 14 jours. Un artefact peut exister après un échec : toujours consulter la conclusion du run et le rapport. La CI habituelle `DICESTRICT quality` relance les mêmes suites lors des changements de code et des pull requests.
 
 ## Migration
 
 Protocole et schéma de sauvegarde v3. La sauvegarde v2 reste dans sa clé locale mais n'est pas chargée par 0.3. Pas de migration de partie en cours ni de compatibilité réseau inter-versions.
-
-## Historique — preuve distincte de la version 0.2
-
-
-## Résultat vérifié le 6 septembre 2026
-
-Le [run GitHub Actions 34041652218](https://github.com/mc-datanalytics/dicestrict/actions/runs/34041652218) est **vert**, y compris le test navigateur réel. Le premier run avait révélé un `require` résiduel dans le module ESM d'interface. Il a été remplacé par un import natif ; le contrôle statique interdit désormais ce mélange dans `src/`.
-
-### Moteur, protocole et construction
-
-- `npm run check` : 20 fichiers JavaScript, syntaxe et imports locaux valides.
-- `npm test` : **27 tests réussis, aucun échec**. Cela inclut 500 parties complètes à 2–4 joueurs et le rejeu identique de leurs **44 337 actions**.
-- Vraies connexions WebSocket locales pour la signalisation : identité attribuée par le service, verrouillage du salon, refus d'une commande réservée à l'hôte envoyée par un invité et départ de l'hôte.
-- `npm run build` : client statique et HTML autonome construits. HTML autonome : **123 390 octets**, avant compression de transport.
-
-### Navigateur — neuf contrôles réussis
-
-Environnement : runner Ubuntu, Chromium 143 / Playwright 1.57.0, WebGL2 via SwiftShader. Les contextes multijoueurs sont isolés mais tournent sur la même machine de test ; ce n'est pas un essai sur deux réseaux publics.
-
-1. Initialisation WebGL2, image effectivement dessinée et non uniforme, aucune erreur GL remontée.
-2. Achat puis conservation de la sauvegarde après rechargement.
-3. Enchère légale via les boutons de l'interface.
-4. Deux contextes reliés par un véritable DataChannel WebRTC ; états identiques après un lancer.
-5. Revanche synchronisée dans le même salon, avec fermeture des résultats.
-6. Départ de l'hôte : suspension du client restant, sans victoire inventée.
-7. Affichage mobile à 390 px sans débordement horizontal ; accès aux propriétés par la liste.
-8. Mode de secours jouable lorsque WebGL est indisponible.
-9. Aucune exception JavaScript non interceptée dans les parcours desktop/multijoueur testés.
-
-Les captures desktop, mobile et multijoueur ont été récupérées et inspectées. L'artefact `dicestrict-build-and-browser-report` contient `test-results/browser-report.json` et les captures. Les artefacts sont conservés 14 jours ; les nouveaux runs en produisent de nouveaux. Un artefact peut aussi être conservé après un échec : toujours lire la conclusion du run.
 
 ## Reproduire
 
@@ -53,10 +51,14 @@ python -m playwright install --with-deps chromium
 python tests/browser.py
 ```
 
-Le navigateur local de l'environnement de rédaction était restreint ; les tests 3D/WebRTC ont donc été exécutés sur GitHub Actions. Aucun contournement de ses politiques locales n'a été appliqué.
+Le navigateur local de rédaction ne permet pas la navigation sur le serveur de test : les essais réels ont été exécutés sur le runner GitHub autorisé, sans contourner les politiques locales. Les tests conservent le contrôle strict de WebGL2, sans accepter le rendu de secours à sa place.
 
 ## Non validé par ces tests
 
-Safari/macOS et iOS, Firefox, Android d'entrée de gamme, matériel tactile réel, longue mise en veille d'onglet, changements de réseau, STUN/TURN et réseaux mobiles, performances GPU réelles et lisibilité en situation de jeu. Les captures ne constituent pas une mesure de fluidité.
+Safari/macOS et iOS, Firefox, Android d'entrée de gamme, matériel tactile réel, longue mise en veille d'onglet, changements de réseau, STUN/TURN et réseaux mobiles, performances GPU réelles et lisibilité pendant une partie humaine. Les captures ne sont pas une mesure de fluidité.
 
-L'intégration au portail CrazyGames, l'hébergement de production, le matchmaking public et la capacité à grande échelle restent à recetter ou à construire. Aucun arbitre serveur, système d'XP ou portefeuille persistant n'est déployé. Le contrôle de synchronisation P2P ne rend pas un hôte malveillant digne de confiance.
+Reconnexion, récupération d'un siège et migration d'hôte restent à développer. Le matchmaking public, l'intégration au portail CrazyGames, l'hébergement de production et la capacité à grande échelle restent à construire ou à recetter. Aucun arbitre serveur, système d'XP ou portefeuille persistant n'est déployé. La synchronisation P2P ne rend pas un hôte malveillant digne de confiance.
+
+## Historique distinct — alpha 0.2
+
+Le [run 34041652218](https://github.com/mc-datanalytics/dicestrict/actions/runs/34041652218) avait validé 27 tests Node, 500 parties / 44 337 actions et neuf contrôles Chromium. Le premier run avait révélé un `require` résiduel dans l'interface ESM ; il avait été remplacé par un import natif et interdit par le contrôle statique. La preuve de 0.2 n'est pas utilisée comme validation de 0.3.
