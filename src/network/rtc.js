@@ -64,10 +64,21 @@ class RoomSession {
   }
   attach(id,channel){
     const p=this.peers.get(id);p.channel=channel;
-    channel.onopen=()=>{p.lastSeen=Date.now();this.ready.add(id);this.send(id,'ready');this.emitLobby();if(this.isHost)this.broadcast('roster',{ready:[...this.ready]});};
+    let opened=false;
+    const onOpen=()=>{
+      if(opened||this.closed)return;opened=true;p.lastSeen=Date.now();
+      // Host readiness requires the peer's application handshake, not just ICE.
+      if(!this.isHost)this.ready.add(id);
+      this.send(id,'ready');
+      if(this.isHost)this.send(id,'lobby-rules',{rules:this.rules});
+      this.emitLobby();
+    };
+    channel.onopen=onOpen;
     channel.onmessage=e=>{try{if(!p.ingress())throw Error('Trop de paquets réseau.');p.lastSeen=Date.now();const msg=readPacket(e.data);this.receive(id,msg,p);}catch(error){this.onError(error.message);}};
     channel.onclose=()=>{if(!this.closed){this.ready.delete(id);if(this.state)this.fail('Un joueur s’est déconnecté. La partie est suspendue.');else this.emitLobby();}};
     channel.onerror=()=>this.onError('Le canal multijoueur a rencontré une erreur.');
+    // An incoming DataChannel can already be open when ondatachannel fires.
+    if(channel.readyState==='open')onOpen();
   }
   send(id,type,body={}){const ch=this.peers.get(id)?.channel;if(ch?.readyState==='open'&&ch.bufferedAmount<128000)ch.send(packet(type,body));}
   broadcast(type,body={}){for(const id of this.peers.keys())this.send(id,type,body);}
