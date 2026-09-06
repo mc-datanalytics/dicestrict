@@ -1,3 +1,4 @@
+import { CivicCenter } from './civic.js';
 import { Districts, DISTRICT_LOTS } from './districts.js';
 import { Marina, MARINA_LOTS } from './marina.js';
 import { Geometry } from './geometry.js';
@@ -85,17 +86,7 @@ function infrastructure() {
       g.block([side*radius,.402,x],[.025,.007,.25],stone);
     }
   }
-  // Civic park and fountain remain public; player buildings grow around them.
-  // Keep the civic park; reserve only its southwest corner for the marina basin.
-  g.box([1.015,.43,.2],[3.07,.12,4.75],'#b2cbb2',.10);
-  g.box([-1.45,.43,-.84],[1.80,.12,2.67],'#b2cbb2',.10);
-  g.block([0,.5,.30],[4.6,.04,.43],'#e4dfcc');
-  g.block([.45,.505,-.05],[.44,.04,4.5],'#e4dfcc');
-  g.cylinder([1.65,.53,1.45],.73,.11,stone,28);
-  g.cylinder([1.65,.59,1.45],.60,.025,glass,28);
-  g.cylinder([1.65,.77,1.45],.11,.36,stone,12,.05);
-  for(const [x,z] of [[2.1,-.8],[2.25,-1.8],[1.3,2.15]])tree(g,x,z);
-  // The former park terrace is replaced by the marina's modelled cafe furniture.
+  // The park paths, fountain and casino now belong to the continuous civic corridor.
   // Small civic pavilion, intentionally not linked to ownership.
   tower(g,1.3,-1.65,.70,.78,.73,stone,true);
   g.cylinder([1.3,1.35,-1.65],.34,.20,'#89aa95',12,.07);
@@ -107,23 +98,6 @@ function infrastructure() {
     g.material=3;g.block([x,.98,-2.55],[.16,.18,.03],'#70c6d1');g.material=0;
   }
   for(const z of [-2.51,-2.68])g.block([0,.42,z],[4.1,.02,.025],'#b7b2a3');
-  // Casino destination, no additional board square or access cost.
-  g.box([-1.25,.5,-.8],[1.75,.14,1.45],stone,.14);
-  tower(g,-1.25,-.95,1.32,.86,.83,'#517e74',true);
-  g.cylinder([-1.25,1.45,-.95],.48,.20,gold,22,.43);
-  g.cylinder([-1.25,1.61,-.95],.32,.13,ink,20,.24);
-  for(let i=0;i<12;i++) {
-    const a=i*Math.PI/6;g.material=3;
-    g.block([-1.25+Math.cos(a)*.40,1.46,-.95+Math.sin(a)*.40],[.055,.065,.05],i%2?'#e98b7a':'#ffe4a0');g.material=0;
-  }
-  g.box([-1.25,.85,-.36],[1.48,.17,.33],gold,.04);
-  g.block([-1.25,.55,-.02],[.52,.025,.50],'#ba796c');
-  for(const x of [-1.88,-.63]) {g.cylinder([x,.69,-.37],.045,.5,stone,10);tree(g,x,-1.56,.65);}
-  // Street lamps with gradual illumination, and local fictional advertising.
-  for(const [x,z] of [[2.2,.6],[-2.2,.4],[.7,2.2],[-.35,-2.05]]) {
-    g.block([x,.89,z],[.035,.98,.035],ink);g.material=2;
-    g.sphere([x,1.40,z],.07,gold,8,4);g.material=0;
-  }
   // Zebra crossings and bus shelters.
   for(const z of [-4.48,4.48])for(let i=0;i<5;i++)g.block([.5+(i-2)*.10,.405,z],[.055,.009,.42],stone);
   for(const x of [-6.62,6.62]) {
@@ -155,29 +129,20 @@ function crane() {
   g.block([.63,.63,0],[.08,.025,.035],gold);
   g.block([-.24,1.16,0],[.16,.16,.16],ink);return g;
 }
-function neonSign(text,w=1.22) {
-  const g=new Geometry();
-  // Tiny original bitmap lettering, assembled as one mesh, no downloaded fonts/textures.
-  const font={C:['111','100','100','100','111'],A:['010','101','111','101','101'],S:['111','100','111','001','111'],I:['111','010','010','010','111'],N:['101','111','111','111','101'],O:['111','101','101','101','111'],R:['110','101','110','101','101'],U:['101','101','101','101','111'],D:['110','101','101','101','110'],E:['111','100','110','100','111']};
-  g.block([0,0,0],[w,.27,.035],ink);g.material=3;
-  const pixel=w/(text.length*4+1);
-  [...text].forEach((c,i)=>(font[c]??font.I).forEach((line,y)=>[...line].forEach((v,x)=>{if(v==='1')g.block([-w/2+(i*4+x+1)*pixel,(2-y)*.038,.025],[pixel*.77,.029,.015],gold);})));g.material=0;
-  return g;
-}
 class LivingCity {
   constructor(renderer) {
     this.renderer=renderer;this.city=null;this.elapsed=0;this.cranes=[];this.celebrations=[];this.quality='high';this.reduced=false;this.living=true;
-    this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);
+    this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);this.civic=new CivicCenter(renderer);
     this.cars=['#db947e','#e0c477','#79b2bb','#e6e3d5'].map(c=>renderer.mesh(vehicle(c)));
     this.bus=renderer.mesh(vehicle('#dcb875','bus'));this.ambulance=renderer.mesh(vehicle('#f1f1df'));
     this.people=['#567d77','#de917b','#b5a2ce','#d9b16b'].map(c=>renderer.mesh(person(c)));
-    this.crane=renderer.mesh(crane());this.sign=renderer.mesh(neonSign('CASINO'));this.ad=renderer.mesh(neonSign('AURORA',.80));
+    this.crane=renderer.mesh(crane());
     const droplet=new Geometry();droplet.block([0,0,0],[.008,.11,.008],'#abced6');this.drop=renderer.mesh(droplet);
     const spark=new Geometry();spark.block([0,0,0],[.035,.035,.035],gold);spark.material=0;this.spark=renderer.mesh(spark);
     const water=new Geometry();water.sphere([0,0,0],.028,'#c2e6dc',6,4);this.water=renderer.mesh(water);
     const siren=new Geometry();siren.material=3;siren.block([0,0,0],[.12,.04,.06],'#88cfe5');this.siren=renderer.mesh(siren);
   }
-  configure(settings) { this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
+  configure(settings) { this.civic.configure(settings);this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
   setState(s) {
     const next=deriveCity(s),reset=this.gameId!==s.id;
     if(!reset&&this.city?.signature===next.signature)return;
@@ -193,8 +158,7 @@ class LivingCity {
   }
   objects(seconds,rain=0) {
     this.elapsed=seconds;
-    const out=[{mesh:this.staticMesh},...this.marina.objects(seconds),...this.districts.objects()];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
-    out.push({mesh:this.sign,model:model(-1.25,1.10,-.485),noShadow:true});
+    const out=[{mesh:this.staticMesh},...this.marina.objects(seconds),...this.districts.objects(),...this.civic.objects()];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
     if(!this.city)return out;
     const running=this.living&&!this.reduced,t=running?seconds:0,budget=cityBudget(this.city,this.quality,this.reduced,this.living);
     this.stats={...budget,owned:this.city.owned,development:this.city.development};
@@ -235,8 +199,6 @@ class LivingCity {
       const a=i*Math.PI/3+t*.8;
       out.push({mesh:this.spark,model:model(p.x+Math.cos(a)*.55,1+((t+i*.1)%1)*1.4,p.z+Math.sin(a)*.55),noShadow:true});
     }
-    // Fictional signage changes facing slowly. No commercial requests or ad-tracking.
-    out.push({mesh:this.ad,model:model(1.45,1.03,-.2,0,running?Math.sin(t*.22)*.18:0),noShadow:true});
     if(running&&rain>.1)for(let i=0;i<budget.rain;i++) {
       const x=((i*1.618)%1-.5)*9,z=((i*.731)%1-.5)*9,y=3.5-((t*1.25+i*.38)%1)*3;
       out.push({mesh:this.drop,model:model(x,y,z,0,0,.16),noShadow:true});

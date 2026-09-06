@@ -7,7 +7,7 @@ uniform vec3 uCamera; uniform vec3 uObjectTint; uniform float uClosed; uniform f
 uniform vec3 uHarborLights[4];
 vec3 marinaShade(vec3 color, vec3 normal, float diffuse, float shadow) {
   int material=int(vTex+.5);vec3 n=normal;vec3 v=normalize(uCamera-vWorld);
-  float night=uStudio>.5?0.:uNight;
+  float night=uStudio>.5?0.:uNight;float dusk=uStudio>.5?0.:uDusk;float lamps=max(night,dusk*.58);
   float tile=material==6?0.:material==7?1.:material==8?2.:material==15?3.:material==17?4.:material==18?5.:material==19?6.:material==20?7.:-1.;
   if(tile>=0.) {
     vec2 corner=vec2(mod(tile,4.),floor(tile/4.))*.25;
@@ -17,7 +17,7 @@ vec3 marinaShade(vec3 color, vec3 normal, float diffuse, float shadow) {
   }
   if(material==14)color*=uObjectTint;
   if(uClosed>.5)color=mix(color,vec3(dot(color,vec3(.2126,.7152,.0722))),.68);
-  if(material==11||material==12)color=mix(vec3(.15,.30,.33),color,night*(1.-uClosed)*float(material==11));
+  if(material==11||material==12)color=mix(vec3(.15,.30,.33),color,lamps*(1.-uClosed)*float(material==11));
   if(uStudio>.5) {
     if(material==5)color=mix(color,vec3(.22,.36,.40),.3);
     return color*(.39+.61*diffuse*(1.-shadow*.70));
@@ -36,22 +36,24 @@ vec3 marinaShade(vec3 color, vec3 normal, float diffuse, float shadow) {
   float light=.44+.56*diffuse*(1.-shadow*.73);
   vec3 hemisphere=mix(vec3(.79,.86,.89),vec3(1.055,1.027,.94),n.y*.5+.5);
   vec3 shaded=color*light*hemisphere*mix(vec3(1.),vec3(.40,.51,.64),night);
+  shaded*=mix(vec3(1.),vec3(1.09,.96,.81),dusk*.72);
   float shiny=material==5?.65:material==9?.68:material==10?.62:material==4?.22:material==8?.13:.015;
   if(material==5||material==9||material==10) {
     vec3 r=reflect(-v,n);vec3 sky=mix(vec3(.37,.52,.53),vec3(.64,.81,.87),smoothstep(-.08,.85,r.y));
+    sky=mix(sky,vec3(.82,.63,.47),dusk*(1.-smoothstep(.0,.6,r.y))*.45);
     sky*=mix(vec3(1.),vec3(.16,.26,.44),night);
     float amount=material==9?.15+fresnel*.55:material==5?.27+fresnel*.50:.18+fresnel*.28;
     shaded=mix(shaded,sky,amount);
   }
   float spec=pow(max(dot(n,normalize(sun+v)),0.),material==9?100.:material==5?76.:material==4?55.:28.);
   shaded+=vec3(1.,.96,.86)*spec*shiny*(1.-shadow*.8)*(1.-night*.86);
-  if(material==11&&uClosed<.5)shaded=mix(shaded,color*(.88+.035*sin(uTime*.15)),night*.94);
-  if(material==16)shaded=mix(color*light*.76,color*1.02,night);
-  if(night>.01)for(int i=0;i<4;i++) {
+  if(material==11&&uClosed<.5)shaded=mix(shaded,color*(.88+.035*sin(uTime*.15)),lamps*.94);
+  if(material==16)shaded=mix(color*light*.76,color*1.02,lamps);
+  if(lamps>.01)for(int i=0;i<4;i++) {
     vec3 d=uHarborLights[i]-vWorld;float ds=dot(d,d);vec3 l=normalize(d);
     float pool=max(dot(n,l),0.)*.043/(.045+ds);
     float glint=pow(max(dot(n,normalize(l+v)),0.),material==9?62.:35.)*.10/(.02+ds);
-    shaded+=vec3(1.,.65,.30)*(pool+glint*shiny)*night;
+    shaded+=vec3(1.,.65,.30)*(pool+glint*shiny)*lamps;
   }
   return mix(shaded,vec3(.48,.59,.61),uWeather*.075);
 }
