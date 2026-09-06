@@ -9,7 +9,9 @@ async def state(page):
 async def setup(page):
     await page.goto(URL)
     await page.wait_for_function("!document.querySelector('.scene-loading')")
-    assert await page.locator('.scene-error').count()==0, 'WebGL2 renderer did not initialize'
+    if await page.locator('.scene-error').count():
+        await page.screenshot(path=str(OUT/'renderer-failure.png'),full_page=True)
+        raise AssertionError(await page.locator('.scene-error').inner_text())
 async def main():
     checks=[];errors=[];browser=None
     server=subprocess.Popen(['node','scripts/dev.mjs','--port','4398'],cwd=ROOT,stdout=subprocess.DEVNULL)
@@ -89,7 +91,15 @@ async def main():
             checks.append('No uncaught JavaScript exceptions in desktop/multiplayer flows')
             await browser.close();browser=None
     except Exception:
-        (OUT/'failure.txt').write_text(traceback.format_exc());raise
+        failure=traceback.format_exc()
+        if browser:
+            for i,ctx in enumerate(browser.contexts):
+                for j,page in enumerate(ctx.pages):
+                    try:
+                        await page.screenshot(path=str(OUT/f'failure-{i}-{j}.png'),full_page=True)
+                        (OUT/f'failure-{i}-{j}.html').write_text(await page.content())
+                    except Exception: pass
+        (OUT/'failure.txt').write_text(failure);raise
     finally:
         (OUT/'browser-report.json').write_text(json.dumps({'passed':checks,'pageErrors':errors},indent=2))
         if browser:await browser.close()
