@@ -1,12 +1,12 @@
-name: Import and validate DICESTRICT 0.2
+name: Finalize DICESTRICT browser validation
 on:
   push:
     branches: [main]
-    paths: ['.bootstrap/READY']
+    paths: ['.github/workflows/import-project.yml']
 permissions:
   contents: write
 jobs:
-  import:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -19,41 +19,33 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Verify and unpack the locally tested source snapshot
+      - name: Apply reviewed ESM correction and improve failure diagnostics
         shell: python
         run: |
-          import base64, hashlib, json, lzma, pathlib, shutil
-          root = pathlib.Path.cwd().resolve()
-          encoded = ''.join(p.read_text().strip() for p in sorted((root/'.bootstrap').glob('payload-*.txt')))
-          raw = base64.b64decode(encoded, validate=True)
-          assert hashlib.sha256(raw).hexdigest() == '1c8fbc472f132fb38422781472ea397e508dcdb7b16354e7b9bb18f8a94faeab', 'Source checksum mismatch'
-          files = json.loads(lzma.decompress(raw, memlimit=128*1024*1024))
-          assert isinstance(files, dict) and len(files) == 32
-          allowed_roots = {'README.md','CHANGELOG.md','SECURITY.md','package.json','index.html','config.js','.gitignore','.env.example'}
-          for name, text in files.items():
-              path = pathlib.PurePosixPath(name)
-              assert not path.is_absolute() and '..' not in path.parts
-              assert name in allowed_roots or path.parts[0] in {'src','scripts','tests','docs'}
-              assert isinstance(text, str) and len(text.encode()) < 100000
-              target = root/name
-              assert target.resolve().is_relative_to(root)
-              target.parent.mkdir(parents=True, exist_ok=True)
-              target.write_text(text, encoding='utf-8')
-          shutil.rmtree(root/'.bootstrap')
-          print('Verified and restored 32 source files.')
-      - name: Validate source, rules, protocol, signaling and build
-        run: npm run check && npm test && npm run build
-      - name: Publish verified source files
+          from pathlib import Path
+          def replace(path, old, new):
+              p=Path(path);s=p.read_text()
+              if old not in s:
+                  assert new in s, 'Unexpected source state: '+path
+                  return
+              assert s.count(old)==1
+              p.write_text(s.replace(old,new))
+          replace('src/ui/app.js','await Promise.resolve().then(()=>require("../scene/board-scene.js"))','await import("../scene/board-scene.js")')
+          old="const source=await readFile(file,'utf8');"
+          replace('scripts/check.mjs',old,old+"if(file.startsWith(join(root,'src')+'/')&&/\\brequire\\s*\\(/.test(source))throw Error(`CommonJS require in browser ESM: ${file}`);")
+          replace('tests/browser.py',"    assert await page.locator('.scene-error').count()==0, 'WebGL2 renderer did not initialize'","    if await page.locator('.scene-error').count():\n        await page.screenshot(path=str(OUT/'renderer-failure.png'),full_page=True)\n        raise AssertionError(await page.locator('.scene-error').inner_text())")
+          replace('tests/browser.py',"    except Exception:\n        (OUT/'failure.txt').write_text(traceback.format_exc());raise","    except Exception:\n        failure=traceback.format_exc()\n        if browser:\n            for i,ctx in enumerate(browser.contexts):\n                for j,page in enumerate(ctx.pages):\n                    try:\n                        await page.screenshot(path=str(OUT/f'failure-{i}-{j}.png'),full_page=True)\n                        (OUT/f'failure-{i}-{j}.html').write_text(await page.content())\n                    except Exception: pass\n        (OUT/'failure.txt').write_text(failure);raise")
+      - run: npm run check && npm test && npm run build
+      - name: Publish source correction
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'feat: import DICESTRICT 0.2 with auctions, WebRTC, tests and reproducible build'
+          git add src/ui/app.js scripts/check.mjs tests/browser.py
+          git diff --cached --quiet || git commit -m 'fix: use native browser import for lazy 3D initialization'
           git push origin HEAD:main
       - run: pip install playwright==1.57.0
       - run: python -m playwright install --with-deps chromium
-      - name: Real browser rendering and multiplayer tests
-        run: python tests/browser.py
+      - run: python tests/browser.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
