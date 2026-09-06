@@ -1,0 +1,1 @@
+DICESTRICT 0.3 player feedback release: verify patch SHA256 62b1be2af0ded1e71276123271f85e2141bd3e76b17587b11a5a4410eeb140f6, then run source, simulation, WebGL and WebRTC tests before committing.
