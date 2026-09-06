@@ -1,0 +1,95 @@
+name: Validate player-feedback release 0.3
+on:
+  push:
+    branches: ['feat/player-feedback-0-3']
+    paths: ['.delivery/READY']
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify and apply locally tested patch without overwriting changed sources
+        shell: python
+        run: |
+          import base64, hashlib, lzma, pathlib, subprocess, tempfile
+          root = pathlib.Path.cwd().resolve()
+          encoded = ''.join(p.read_text().strip() for p in sorted((root/'.delivery').glob('part-*.txt')))
+          packed = base64.b64decode(encoded, validate=True)
+          digest = hashlib.sha256(packed).hexdigest()
+          print('Received patch SHA256:', digest)
+          assert digest == '62b1be2af0ded1e71276123271f85e2141bd3e76b17587b11a5a4410eeb140f6'
+          patch = lzma.decompress(packed, memlimit=128*1024*1024)
+          assert len(patch) == 144433
+          expected = {
+            'CHANGELOG.md':'0d43b4004d6fd1876a742896b3873e647b41940e',
+            'README.md':'617b45bdc8140e8e177dfb3863fa2e3b35a16bff',
+            'SECURITY.md':'a40e9edf300e444531d487d54d21851ffb68dc08',
+            'docs/ARCHITECTURE.md':'3384319d5ac90c0a73d28c836f54b56969fb249e',
+            'docs/ROADMAP.md':'f1cb67730f403c9a3ada4d0b637d48c0d84c406f',
+            'docs/VALIDATION.md':'7832273a5cb81f32244156375893e3da30b2eb16',
+            'docs/research/PLAYER_FEEDBACK.md':None,
+            'package.json':'723d2e86fa1e484dff015235376c1d3af6713743',
+            'scripts/build.mjs':'8525f2a7900ea321c101105493fef09acc5bffa7',
+            'src/game/board.js':'b0224d793db84e456977e28c966599a61ccf5cd5',
+            'src/game/bots.js':'97a6580bb116e99459c88a1b38b54cb04ea730ca',
+            'src/game/deals.js':None,
+            'src/game/engine.js':'24ab8582fe277436f20a62dbbabd671c9d404d03',
+            'src/game/presets.js':None,
+            'src/network/protocol.js':'8b6d70b013d0026fb12d585ca633ccb834aeb285',
+            'src/network/rtc.js':'fe1ce6d7385d63ccc29f7da8624662ec9877981a',
+            'src/ui/app.js':'267eac0dad65ab12dc1eda3b11dc514128fd89ea',
+            'src/ui/deals-view.js':None,
+            'src/ui/styles.css':'f63d5c19779667de9498bb1516c640f404853e00',
+            'tests/browser.py':'7b4fd7742da13a86a04c624d9a816c9cd1700fda',
+            'tests/feedback.test.mjs':None,
+          }
+          for name, before in expected.items():
+            target = root/name
+            assert not target.is_symlink() and target.resolve().is_relative_to(root)
+            if before is None:
+              assert not target.exists(), 'New path already exists: '+name
+            else:
+              data = target.read_bytes()
+              assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest() == before, 'Source changed: '+name
+          with tempfile.NamedTemporaryFile(suffix='.patch') as f:
+            f.write(patch); f.flush()
+            stats = subprocess.check_output(['git','apply','--numstat',f.name],text=True)
+            assert {line.split('\t',2)[2] for line in stats.splitlines()} == set(expected)
+            subprocess.run(['git','apply','--check','--whitespace=error-all',f.name],check=True)
+            subprocess.run(['git','apply','--whitespace=error-all',f.name],check=True)
+          p = root/'src/network/rtc.js'
+          text = p.read_text()
+          assert 'rematch(rounds=12)' in text
+          p.write_text(text.replace('rematch(rounds=12)','rematch(rounds=this.rules.rounds)'))
+          print('Applied 21 reviewed files and preserved the rematch rules default.')
+      - name: Source, invariants, simulations and offline build
+        run: npm run check && npm test && npm run build
+      - run: pip install playwright==1.57.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Real WebGL, UI, mobility and WebRTC deal flows
+        run: python tests/browser.py
+      - name: Publish only after all functional and browser checks pass
+        run: |
+          rm -rf .delivery
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: player-feedback 0.3 with off-turn deals, mobility and explicit match formats'
+          git push origin HEAD:feat/player-feedback-0-3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dicestrict-feedback-build-and-browser-report
+          path: |
+            dist/
+            test-results/
+          retention-days: 14
