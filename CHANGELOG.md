@@ -1,3 +1,12 @@
+# 0.6.2 — Déplacement automatique
+
+- Suppression complète des jetons et du choix −1/0/+1 : ROLL déplace et résout l’arrivée en une seule commande. Aucune option avancée conservée.
+- UI, aide, salons, bots et lab simplifiés ; cases de transports nommées Métro pour éviter la confusion, effets et modèles inchangés.
+- Moteur/réseau/sauvegardes v6, lab v3, politiques v4. Anciennes sauvegardes conservées, sans migration silencieuse des parties/replays/configurations.
+- Contrôles remplacés pour la nouvelle règle : distance exacte, règlement unique, refus des anciens payloads, mêmes fonctionnalités d’achat/enchère/négociation.
+- 4 000 nouvelles trajectoires diagnostiques sur deux corpus indépendants. Pas de modification du bonus de siège ni de validation humaine revendiquée.
+- Travaux artistiques de main conservés. Branches phase4 et engagement 0.7 non modifiées, non intégrées automatiquement.
+
 # 0.6.0 — Ouverture équitable et essais locaux
 
 - Six départs versionnés dans le lab ; classique et comp-60 facultatif dans le jeu. Défaut classique conservé, protocole/sauvegarde v5.

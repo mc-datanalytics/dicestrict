@@ -14,29 +14,36 @@ const offer=(extra={})=>({type:'OFFER_DEAL',to:'b',giveCash:30,takeCash:0,giveTi
 const totalCash=s=>s.players.reduce((sum,p)=>sum+p.cash,0);
 const change=(s,id,action)=>applyAction(s,id,action);
 
-test('mobility: dice expose a choice without charging rent or moving yet',()=>{
- const s=game({mobility:2}), next=change(s,'a',{type:'ROLL'});
- assert.equal(next.phase,'choose');assert.equal(next.players[0].position,0);assert.equal(next.players[0].cash,1800);assert.equal(s.revision,0);
+test('movement: a single roll resolves the exact dice total immediately',()=>{
+ const s=game(), before=JSON.stringify(s), next=change(s,'a',{type:'ROLL'});
+ assert.deepEqual(next.dice,[6,4]);assert.equal(next.players[0].position,10);
+ assert.equal(next.phase,'end');assert.notEqual(next.event,null);
+ assert.equal(next.revision,1);assert.equal(JSON.stringify(s),before);
 });
-test('mobility: normal route is free; +/-1 consumes exactly one equal-allocation token',()=>{
- const rolled=change(game({mobility:2}),'a',{type:'ROLL'}), sum=rolled.dice.reduce((a,b)=>a+b);
- for(const offset of [-1,0,1]){const next=change(rolled,'a',{type:'MOVE',offset});assert.equal(next.players[0].position,sum+offset);assert.equal(next.players[0].mobilityTokens,offset?1:2);}
- assert.equal(rolled.players[0].position,0);
+test('movement: no route choice or token exists in any preset',()=>{
+ for(const preset of PRESETS){const s=game(matchOptions(preset.id));
+  assert.equal(Object.hasOwn(s,'mobility'),false);
+  assert.ok(s.players.every(p=>!Object.hasOwn(p,'mobilityTokens')));
+  const next=change(s,'a',{type:'ROLL'});
+  assert.equal(next.players[0].position,next.dice[0]+next.dice[1]);assert.notEqual(next.phase,'choose');
+ }
 });
-test('mobility: crossing start pays once and exhausted tokens add no extra click',()=>{
- const s=game({mobility:1});s.players[0].position=27;
- const rolled=change(s,'a',{type:'ROLL'}), next=change(rolled,'a',{type:'MOVE',offset:-1});
- assert.equal(next.log.filter(x=>x.text.includes('passe le départ')).length,1);assert.equal(next.players[0].mobilityTokens,0);
- next.phase='roll';next.pending=null;next.turn=0;
- assert.notEqual(change(next,'a',{type:'ROLL'}).phase,'choose');
+test('movement: crossing start pays exactly once, with no extra click',()=>{
+ const s=game();s.players[0].position=27;
+ const next=change(s,'a',{type:'ROLL'});
+ assert.equal(next.players[0].position,9);assert.equal(next.phase,'buy');
+ assert.equal(next.players[0].cash,2020);assert.equal(next.log.filter(x=>x.text.includes('passe le départ')).length,1);
+ assert.throws(()=>change(next,'a',{type:'ROLL'}));
 });
-test('mobility: bad phases, other actors, arbitrary dice and extra fields are rejected',()=>{
- const s=game({mobility:2}), rolled=change(s,'a',{type:'ROLL'});
- assert.throws(()=>change(s,'a',{type:'MOVE',offset:0}));assert.throws(()=>change(rolled,'b',{type:'MOVE',offset:0}));
- for(const action of [{type:'MOVE',offset:2},{type:'MOVE',offset:.5},{type:'MOVE',offset:1,cash:999},{type:'ROLL',dice:[6,6]}])assert.throws(()=>change(rolled,'a',action));
+test('movement: removed commands, offsets, other actors and supplied dice are rejected',()=>{
+ const s=game();assert.throws(()=>change(s,'b',{type:'ROLL'}));
+ for(const action of [{type:'MOVE',offset:0},{type:'MOVE',offset:1},{type:'ROLL',offset:-1},{type:'ROLL',dice:[6,6]}])assert.throws(()=>change(s,'a',action));
 });
-test('mobility: receiving a manipulated token snapshot is rejected',()=>{
- for(const tokens of [-1,3,1.5,NaN]){const s=game({mobility:2});s.players[0].mobilityTokens=tokens;assert.throws(()=>assertState(s));}
+test('movement: legacy config, state fields and pending choice cannot be smuggled into v6',()=>{
+ for(const tokens of [0,2,null,undefined])assert.throws(()=>game({mobility:tokens}));
+ for(const mutate of [s=>s.mobility=0,s=>s.players[0].mobilityTokens=0,s=>s.phase='choose',s=>s.version=5]){
+  const s=game();mutate(s);assert.throws(()=>assertState(s));
+ }
 });
 test('deals: can be proposed and accepted off-turn, preserving cash and immutability',()=>{
  const s=owned();s.turn=2;const offered=change(s,'a',offer());
@@ -57,8 +64,8 @@ test('deals: blocked during auctions/landing decisions to prevent moving target 
  const s=owned();s.phase='buy';s.pending=2;s.players[0].position=2;
  assert.throws(()=>change(s,'b',offer({to:'a',giveTiles:[4],takeTiles:[1]})));
  const auction=change(s,'a',{type:'SKIP'});assert.throws(()=>change(auction,'a',offer()));
- const mobility=owned();mobility.mobility=2;mobility.players.forEach(p=>p.mobilityTokens=2);
- assert.throws(()=>change(change(mobility,'a',{type:'ROLL'}),'a',offer()));
+ const finished=owned();finished.phase='finished';finished.endReason='round-cap';finished.winners=['a'];
+ assert.throws(()=>change(finished,'a',offer()));
 });
 test('deals: mortgages and any buildings in the offered group prevent trading',()=>{
  const s=owned();s.properties[1].mortgaged=true;assert.equal(tradeable(s,1,'a'),false);assert.throws(()=>change(s,'a',offer()));
@@ -120,19 +127,19 @@ test('network: stale deals still cannot cross game IDs or forge actor identity',
  r.receive(who,{type:'action',actor:'b',requestId:'forged',gameId:id,revision:0,action:{type:'ACCEPT_DEAL',dealId:1}},{limit:()=>true,seen:new Set()});assert.equal(r.state.properties[1].owner,'a');}
 });
 test('presets: Blitz ends for everybody on insolvency instead of keeping spectators',()=>{
- const s=game(matchOptions('blitz'));s.players[0].cash=0;s.players[0].position=4;s.dice=[1,1];s.phase='choose';
- const next=change(s,'a',{type:'MOVE',offset:0});assert.equal(next.phase,'finished');assert.equal(next.endReason,'first-bankruptcy');assert.equal(next.winners.length,2);
+ const s=game(matchOptions('blitz'));s.players[0].cash=0;s.players[0].position=10;
+ const next=change(s,'a',{type:'ROLL'});assert.equal(next.phase,'finished');assert.equal(next.endReason,'first-bankruptcy');assert.equal(next.winners.length,2);
  assert.throws(()=>change(next,'b',{type:'ROLL'}));
 });
 test('presets: same insolvency in Standard does not silently change the win rule',()=>{
- const s=game(matchOptions('standard'));s.players[0].cash=0;s.players[0].position=4;s.dice=[1,1];s.phase='choose';
- const next=change(s,'a',{type:'MOVE',offset:0});assert.equal(next.phase,'roll');assert.equal(next.players[0].bankrupt,true);assert.equal(next.turn,1);assert.equal(next.endReason,null);
+ const s=game(matchOptions('standard'));s.players[0].cash=0;s.players[0].position=10;
+ const next=change(s,'a',{type:'ROLL'});assert.equal(next.phase,'roll');assert.equal(next.players[0].bankrupt,true);assert.equal(next.turn,1);assert.equal(next.endReason,null);
 });
 test('lobby rules: bounded settings and no unknown fields in announcements',()=>{
  for(const rules of [matchOptions('blitz'),matchOptions('standard'),matchOptions('grand')])assert.deepEqual(readPacket(packet('lobby-rules',{rules})).rules,rules);
  for(const rules of [{rounds:12,mobility:2,finishOnBankruptcy:1},{rounds:0,mobility:2,finishOnBankruptcy:false},{rounds:12,mobility:8,finishOnBankruptcy:false},{...matchOptions('blitz'),extra:true}])assert.throws(()=>readPacket(packet('lobby-rules',{rules})));
 });
-test('300 complete mixed-rules games with mobility and negotiation replay identically',()=>{
+test('300 complete mixed-rules games with automatic movement and negotiation replay identically',()=>{
  let actions=0,offers=0;
  for(let seed=1;seed<=300;seed++){
   const preset=PRESETS[seed%PRESETS.length];const initial=createGame(seats.map(p=>({...p,bot:true})),seed,{...matchOptions(preset.id),id:`replay-${seed}`});

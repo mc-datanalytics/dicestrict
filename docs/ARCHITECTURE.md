@@ -1,10 +1,10 @@
-# Architecture 0.6
+# Architecture 0.6.2
 
 ## Réducteur et versions
 
-Les modules natifs ESM du navigateur et du lab Node partagent `src/game/engine.js`. `createGame` crée l'état ; `applyAction` clone, valide l'identité et les paramètres, applique la commande, incrémente la révision et vérifie les invariants. Aucun temps mural ni accès réseau dans les règles. Règles/snapshots/protocole **v5**, lab **v2**, politiques **v3**. Pas d'import silencieux des anciennes parties v4 ; leurs clés de sauvegarde ne sont pas supprimées.
+Les modules natifs ESM du navigateur et du lab Node partagent `src/game/engine.js`. `createGame` crée l'état ; `applyAction` clone, valide l'identité et les paramètres, applique la commande, incrémente la révision et vérifie les invariants. Aucun temps mural ni accès réseau dans les règles. Règles/snapshots/protocole **v6**, lab **v3**, politiques **v4**. Pas d'import silencieux des anciennes parties v5 ; leurs clés de sauvegarde ne sont pas supprimées.
 
-`board.js` définit le plateau et les montants, `presets.js` les formats, `deals.js` les transactions, `casino.js` le casino uniquement en crédits de partie. Les commandes sont ROLL, BUY, SKIP, END, UPGRADE, SELL_LEVEL, MORTGAGE, REDEEM, BID, PASS, MOVE, OFFER_DEAL, ACCEPT_DEAL, DECLINE_DEAL, CANCEL_DEAL et CASINO_BET. `currentPlayer` retourne l'enchérisseur durant une enchère, sans modifier le propriétaire du tour normal.
+`board.js` définit le plateau et les montants, `presets.js` les formats, `deals.js` les transactions, `casino.js` le casino uniquement en crédits de partie. Les commandes sont ROLL, BUY, SKIP, END, UPGRADE, SELL_LEVEL, MORTGAGE, REDEEM, BID, PASS, OFFER_DEAL, ACCEPT_DEAL, DECLINE_DEAL, CANCEL_DEAL et CASINO_BET. `currentPlayer` retourne l'enchérisseur durant une enchère, sans modifier le propriétaire du tour normal.
 
 ## Ouverture et négociation
 
@@ -12,7 +12,7 @@ Les modules natifs ESM du navigateur et du lab Node partagent `src/game/engine.j
 
 `negotiator.js` propose des échanges réciproques à partir des biens et fonds visibles, sans futurs tirages. Les deux parties complètent chacune un quartier, avec différence de prix et réserve contrôlées. Les bots du jeu l'utilisent ; le lab l'active explicitement selon sa configuration. Le moteur continue à revérifier toutes les transactions atomiquement. Pas de fonds réservés, cadeau gratuit, hypothèque ou quartier construit échangeable. La politique n'est pas un modèle complet du comportement humain.
 
-`turnSerial` compte les fins de tour ordinaires pour les quotas et expirations. Les offres et identifiants sont bornés. Une acceptation tardive reste liée au même jeu, ne peut venir d'une révision future et est revérifiée sur l'état courant ; une commande ordinaire exige une révision exacte. Les règles sont annoncées par `lobby-rules` puis verrouillées au départ. La mobilité attend un choix après les dés si le joueur possède encore des jetons ; la case d'arrivée et le bonus de passage ne sont résolus qu'une fois.
+`turnSerial` compte les fins de tour ordinaires pour les quotas et expirations. Les offres et identifiants sont bornés. Une acceptation tardive reste liée au même jeu, ne peut venir d'une révision future et est revérifiée sur l'état courant ; une commande ordinaire exige une révision exacte. Les règles sont annoncées par `lobby-rules` puis verrouillées au départ. ROLL tire les dés, déplace le pion de leur total et résout la case d'arrivée dans une seule transition. Le passage au départ est crédité une seule fois. Aucun jeton, phase choose ou commande MOVE n'existe dans les règles v6.
 
 ## Scène, lab et essais enregistrés
 

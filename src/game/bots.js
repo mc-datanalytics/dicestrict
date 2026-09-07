@@ -1,5 +1,5 @@
 import { BOARD, RULES } from "./board.js";
-import { currentPlayer, ownsGroup, upgradeCost, rentFor } from "./engine.js";
+import { currentPlayer, ownsGroup, upgradeCost } from "./engine.js";
 /** Explicit heuristic profiles shared by the game and the offline balance lab.
  * These are test policies, not claims about human skill or optimal play. */
 const BOT_PROFILES = Object.freeze({
@@ -13,19 +13,6 @@ function botAction(s, profile = 'balanced') {
   const policy = BOT_PROFILES[profile];
   if (!policy) throw Error('Profil de bot inconnu.');
   const p = currentPlayer(s);
-  if (s.phase === 'choose') {
-    const value = offset => {
-      const id = (p.position + s.dice[0] + s.dice[1] + offset) % BOARD.length, t = BOARD[id], prop = s.properties[id];
-      if (t.kind === 'lot') {
-        if (!prop.owner) return p.cash >= t.price ? 45 + (BOARD.some(x => x.kind === 'lot' && x.group === t.group && s.properties[x.id].owner === p.id) ? 90 : 0) : 0;
-        return prop.owner === p.id ? 0 : -rentFor(s, id);
-      }
-      return ({tax:-90,audit:-80,grant:100,park:70,transit:60,start:0,event:30})[t.kind];
-    };
-    let offset = 0, score = value(0);
-    for (const candidate of [-1, 1]) if (value(candidate) > score + 45) { offset = candidate; score = value(candidate); }
-    return { type: 'MOVE', offset };
-  }
   if (s.phase === 'roll') return { type: 'ROLL' };
   if (s.phase === 'buy') {
     const t = BOARD[p.position], matching = BOARD.filter(x => x.kind === 'lot' && x.group === t.group && s.properties[x.id].owner === p.id).length;

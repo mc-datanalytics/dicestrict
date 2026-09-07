@@ -1,6 +1,6 @@
 {
   "name": "dicestrict",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "description": "An original local-first 3D property strategy game.",
   "type": "module",
@@ -15,6 +15,7 @@
     "check": "node scripts/check.mjs",
     "build:lab": "node scripts/build.mjs --lab",
     "balance": "node scripts/balance.mjs",
+    "balance:automatic": "node scripts/automatic-baseline.mjs",
     "balance:opening": "node scripts/fair-opening.mjs",
     "playtest:verify": "node scripts/verify-playtest.mjs",
     "assets:export": "node scripts/assets/export-marina.mjs && node scripts/assets/export-districts.mjs",

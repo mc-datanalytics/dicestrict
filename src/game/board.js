@@ -18,7 +18,7 @@ const BOARD = Object.freeze([
   lot('Port Aurora', 2, 200, 32), lot('Les Terrasses', 2, 220, 36),
   special('L’imprévu', 'event', '#ad9fd4', 'Une carte peut tout changer'),
   lot('Studio 54', 3, 230, 38), lot('Manufacture', 3, 250, 42),
-  special('Mobilité', 'transit', '#90b4ba', 'Dividende mobilité : +60'),
+  special('Métro', 'transit', '#90b4ba', 'Dividende transports : +60'),
   special('Incubateur', 'grant', '#bdb2dc', 'Bourse de création : +100'),
   lot('Skyline', 4, 270, 46), lot('Tour Azur', 4, 290, 50),
   special('L’imprévu', 'event', '#ad9fd4', 'Une carte peut tout changer'),
@@ -26,7 +26,7 @@ const BOARD = Object.freeze([
   special('Contribution', 'tax', '#e6a38d', 'Contribution de 90'),
   special('Inspection', 'audit', '#d4aea2', 'Mise aux normes : 80'),
   lot('Villa Rosée', 6, 350, 65), lot('Galerie Bloom', 6, 370, 70),
-  special('Mobilité', 'transit', '#90b4ba', 'Dividende mobilité : +60'),
+  special('Métro', 'transit', '#90b4ba', 'Dividende transports : +60'),
   lot('Palais Solaire', 7, 400, 78), lot('Golden Heights', 7, 440, 88),
   special('L’imprévu', 'event', '#ad9fd4', 'Une carte peut tout changer'),
 ].map((tile, id) => Object.freeze({ ...tile, id })));
@@ -40,7 +40,7 @@ const EVENTS = Object.freeze([
   { title: 'Une bonne action', text: 'Vous financez la fête des voisins.', amount: -60 },
   { title: 'Belle rencontre', text: 'Un nouveau partenaire vous fait confiance.', amount: 80 },
 ]);
-const RULES = Object.freeze({ version: 5, startCash: 1800, lapIncome: 220, rounds: 12, maxLevel: 3, auctionStep: 20 });
+const RULES = Object.freeze({ version: 6, startCash: 1800, lapIncome: 220, rounds: 12, maxLevel: 3, auctionStep: 20 });
 function tilePosition(id) {
   const side = Math.floor(id / 7), t = id % 7, edge = 5.6, step = 1.6;
   return side === 0 ? [edge - t * step, edge] : side === 1 ? [-edge, edge - t * step] :

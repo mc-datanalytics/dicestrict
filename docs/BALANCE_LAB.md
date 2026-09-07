@@ -1,4 +1,4 @@
-# DICESTRICT Balance Lab — alpha 0.6
+# DICESTRICT Balance Lab — alpha 0.6.2
 
 Le laboratoire exécute le même réducteur `applyAction` que le jeu, sans renderer pendant les simulations, sans réseau de partie, sauvegarde humaine, XP, portefeuille ou compte. Il ne change jamais une partie en cours.
 
@@ -15,13 +15,13 @@ Le HTML autonome embarque son Worker et fonctionne en `file://` sans requête ex
 
 ## Comparaisons
 
-A et B partagent graines, identités et rotations. Deux à quatre profils Équilibré, Prudent, Bâtisseur ou Collectionneur ; plafonds de 4–30 manches, 0–3 jetons Mobilité, fin commune à la première faillite, casino désactivé ou politiques de mise bornées. Activer le casino sans politique de mise ne simule pas une participation. Les quotas et réserves sont ceux du moteur.
+A et B partagent graines, identités et rotations. Deux à quatre profils Équilibré, Prudent, Bâtisseur ou Collectionneur ; plafonds de 4–30 manches, fin commune à la première faillite, casino désactivé ou politiques de mise bornées. Activer le casino sans politique de mise ne simule pas une participation. Les quotas et réserves sont ceux du moteur.
 
-La 0.6 ajoute les ouvertures Classique, ordre alterné et compensations de 20/40/60/80 par rang. Le jeu expose seulement Classique et comp-60 facultatif ; la validation de ce dernier est limitée à certains scénarios à quatre sièges. Voir [résultats et contre-exemples](experiments/FAIR_OPENING_RESULTS.md). Le bonus est attribué une fois et compte au score.
+La 0.6 ajoute les ouvertures Classique, ordre alterné et compensations de 20/40/60/80 par rang. Le jeu expose seulement Classique et comp-60 facultatif ; la validation de ce dernier est limitée à certains scénarios à quatre sièges. Les mesures 0.6 utilisaient Mobilité ; elles ne sont pas une validation des règles v6. Voir [résultats historiques et contre-exemples](experiments/FAIR_OPENING_RESULTS.md). Le bonus est attribué une fois et compte au score.
 
 Négociation : aucune proposition ou politique réciproque. Celle-ci cherche un échange complétant un quartier pour chaque partie, avec différence de prix et réserve. Les propositions et réponses passent par les commandes réelles du moteur ; les indicateurs comptent propositions, acceptations, refus et terrains échangés. Cette politique étroite ne simule ni bluff, ni alliances, ni conversation humaine. Les bots ne consultent pas les futurs tirages.
 
-Les prix et loyers restent ceux du code versionné, pas ceux d'un simulateur économique distinct. Modifier ces règles demande de relancer les campagnes sur la nouvelle révision. Les configurations historiques reçoivent explicitement `opening: classic` et `negotiation: none` ; les replays v4 ne sont pas chargés dans v5.
+Les prix et loyers restent ceux du code versionné, pas ceux d'un simulateur économique distinct. Modifier ces règles demande de relancer les campagnes sur la nouvelle révision. Le déplacement est toujours automatique. Les anciennes configurations contenant `mobility` sont refusées, même si sa valeur est zéro ; aucun réglage caché. Les replays/traces v5 ne sont pas chargés dans le moteur v6. Les anciennes données et études restent historiques.
 
 ## Méthode statistique
 
@@ -42,10 +42,9 @@ Toute erreur, absence d'action ou dépassement de 4 000 commandes produit une pa
 ## Exports et reproduction
 
 ```sh
-npm run balance -- --config docs/experiments/casino.json --out lab-results/custom --replay-out lab-results/replay.json
+npm run balance -- --experiment casino --out lab-results/custom --replay-out lab-results/replay.json
 npm run balance -- --verify-replay lab-results/replay.json
-npm run balance:opening -- development lab-results/fair-opening
-npm run balance:opening -- confirmation lab-results/fair-opening
+npm run balance:automatic
 npm run playtest:verify -- chemin/trace.json
 ```
 

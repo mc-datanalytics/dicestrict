@@ -1,0 +1,384 @@
+{
+  "schema": "dicestrict-automatic-baseline-v1",
+  "source": {
+    "sha256": "85a0738d354013337e172340ed11c0be65fe7d376934dc6db0a9f75e3fcc87d5",
+    "scope": "engine-policies-lab-v3",
+    "files": {
+      "src/game/opening.js": "ce380541fe6041f28a30664ac1f7ce125dbd6ce51b2de08f47f63dd6b32b41d0",
+      "src/game/negotiator.js": "9e21bd438dd8db1b3bdf46932ee56d302b10313a7083d4e385bbaf99b6c6bf8b",
+      "src/game/board.js": "b2719ba4e33591ceda283683a179394b231f8719e349a13ef180c2cb61be1fe6",
+      "src/game/bots.js": "2a83eda80a39594fe4b274d4c6a0c18b792450531291adcc3f7d0100f954a60f",
+      "src/game/casino.js": "8f9d726f9a12d4fbf17d9cfe917d23d9b64603a4dec45e06093866c2399ee379",
+      "src/game/deals.js": "0d9c71999f40b526552316805beb6bc855bdb9318593f755eb3aeeb8641232d2",
+      "src/game/engine.js": "230efc9b01c083a4e9519683b82b4b97ccbd2e33919190fed6936764fba4d8a4",
+      "src/lab/core.js": "2f410b0f06d2f769a7675828fab5c7e56e5b850af749e3aa70ace132eb687a46",
+      "src/lab/statistics.js": "05bb10215644e7a0f4f619c57f1229cd38faac6c7631890c9836f03de0d3ea61"
+    }
+  },
+  "overlappingSeeds": 0,
+  "humanParticipants": 0,
+  "warning": "Diagnostic only, not a new tuning or human-equity validation. Classic remains the default.",
+  "runtime": "Node 22.16.0",
+  "date": "2026-09-07",
+  "baseCommit": "b5f547c97ce8387f1c31b25bef3a29952d0a94a7",
+  "cases": [
+    {
+      "name": "standard",
+      "config": {
+        "baseSeed": 1779033703,
+        "samples": 1000,
+        "rotateSeats": false,
+        "lineup": [
+          "balanced",
+          "balanced",
+          "balanced",
+          "balanced"
+        ],
+        "baseline": {
+          "rounds": 12,
+          "finishOnBankruptcy": false,
+          "casino": false,
+          "casinoPolicy": "none",
+          "opening": "classic",
+          "negotiation": "none"
+        },
+        "candidate": {
+          "rounds": 12,
+          "finishOnBankruptcy": false,
+          "casino": false,
+          "casinoPolicy": "none",
+          "opening": "comp-60",
+          "negotiation": "none"
+        }
+      },
+      "gamesAttempted": 2000,
+      "gamesCompleted": 2000,
+      "failures": [],
+      "seatSpread": {
+        "winsA": [
+          0.3505,
+          0.258,
+          0.223,
+          0.1685
+        ],
+        "winsB": [
+          0.276,
+          0.234,
+          0.252,
+          0.238
+        ],
+        "classic": 0.18199999999999997,
+        "comp60": 0.04200000000000001,
+        "reduction": {
+          "mean": 0.13999999999999996,
+          "low": 0.09098750000000008,
+          "high": 0.16351250000000014
+        },
+        "independentSeeds": 1000,
+        "resamples": 600
+      },
+      "reportSHA256": "a012dbf887a435719ea37b90b4bd832c9c7b3a004a8bd50fe5e2cf6cc1cfbb8a",
+      "metrics": {
+        "levels": {
+          "a": {
+            "mean": 4.082,
+            "low": 3.867975,
+            "high": 4.348025,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 4.267,
+            "low": 4.0478250000000005,
+            "high": 4.539174999999999,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0.185,
+            "low": 0.145975,
+            "high": 0.22604999999999997,
+            "blocks": 1000
+          }
+        },
+        "anyBankruptcy": {
+          "a": {
+            "mean": 0.001,
+            "low": 0,
+            "high": 0.003,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 0.001,
+            "low": 0,
+            "high": 0.003,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0,
+            "low": 0,
+            "high": 0,
+            "blocks": 1000
+          }
+        },
+        "dealsAccepted": {
+          "a": {
+            "mean": 0,
+            "low": 0,
+            "high": 0,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 0,
+            "low": 0,
+            "high": 0,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0,
+            "low": 0,
+            "high": 0,
+            "blocks": 1000
+          }
+        },
+        "meanWealth": {
+          "a": {
+            "mean": 2442.2775,
+            "low": 2435.5809375,
+            "high": 2449.51420625,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 2532.1905,
+            "low": 2525.47961875,
+            "high": 2539.43711875,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 89.913,
+            "low": 89.77272500000001,
+            "high": 90.061,
+            "blocks": 1000
+          }
+        },
+        "rolls": {
+          "a": {
+            "mean": 47.999,
+            "low": 47.997,
+            "high": 48,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 47.999,
+            "low": 47.997,
+            "high": 48,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0,
+            "low": 0,
+            "high": 0,
+            "blocks": 1000
+          }
+        },
+        "actions": {
+          "a": {
+            "mean": 113.996,
+            "low": 113.66782500000001,
+            "high": 114.35312499999999,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 114.048,
+            "low": 113.727975,
+            "high": 114.409075,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0.052,
+            "low": -0.115075,
+            "high": 0.2210999999999999,
+            "blocks": 1000
+          }
+        }
+      }
+    },
+    {
+      "name": "negotiation",
+      "config": {
+        "baseSeed": 3144134277,
+        "samples": 1000,
+        "rotateSeats": false,
+        "lineup": [
+          "balanced",
+          "balanced",
+          "balanced",
+          "balanced"
+        ],
+        "baseline": {
+          "rounds": 12,
+          "finishOnBankruptcy": false,
+          "casino": false,
+          "casinoPolicy": "none",
+          "opening": "classic",
+          "negotiation": "reciprocal"
+        },
+        "candidate": {
+          "rounds": 12,
+          "finishOnBankruptcy": false,
+          "casino": false,
+          "casinoPolicy": "none",
+          "opening": "comp-60",
+          "negotiation": "reciprocal"
+        }
+      },
+      "gamesAttempted": 2000,
+      "gamesCompleted": 2000,
+      "failures": [],
+      "seatSpread": {
+        "winsA": [
+          0.34,
+          0.2705,
+          0.2035,
+          0.186
+        ],
+        "winsB": [
+          0.278,
+          0.253,
+          0.2315,
+          0.2375
+        ],
+        "classic": 0.15400000000000003,
+        "comp60": 0.046500000000000014,
+        "reduction": {
+          "mean": 0.10750000000000001,
+          "low": 0.06850000000000006,
+          "high": 0.1295125000000001
+        },
+        "independentSeeds": 1000,
+        "resamples": 600
+      },
+      "reportSHA256": "b068a35c3265354bd2c70a2387e55c7272787d19e0a7f37ba0170e6b8198fa5e",
+      "metrics": {
+        "levels": {
+          "a": {
+            "mean": 11.382,
+            "low": 11.030800000000001,
+            "high": 11.722449999999998,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 12.039,
+            "low": 11.649925,
+            "high": 12.42525,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0.657,
+            "low": 0.576,
+            "high": 0.73105,
+            "blocks": 1000
+          }
+        },
+        "anyBankruptcy": {
+          "a": {
+            "mean": 0.011,
+            "low": 0.005,
+            "high": 0.017,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 0.009,
+            "low": 0.003,
+            "high": 0.015,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": -0.002,
+            "low": -0.007,
+            "high": 0.003,
+            "blocks": 1000
+          }
+        },
+        "dealsAccepted": {
+          "a": {
+            "mean": 0.978,
+            "low": 0.9339500000000001,
+            "high": 1.025,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 0.981,
+            "low": 0.935975,
+            "high": 1.029,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0.003,
+            "low": -0.0030249999999999986,
+            "high": 0.009,
+            "blocks": 1000
+          }
+        },
+        "meanWealth": {
+          "a": {
+            "mean": 2441.013,
+            "low": 2434.43314375,
+            "high": 2448.6131812500003,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 2530.297,
+            "low": 2523.6833625,
+            "high": 2537.91295625,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 89.284,
+            "low": 88.5297125,
+            "high": 90.1719125,
+            "blocks": 1000
+          }
+        },
+        "rolls": {
+          "a": {
+            "mean": 47.996,
+            "low": 47.992,
+            "high": 47.999,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 47.996,
+            "low": 47.992,
+            "high": 47.999,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0,
+            "low": -0.004,
+            "high": 0.004,
+            "blocks": 1000
+          }
+        },
+        "actions": {
+          "a": {
+            "mean": 124.773,
+            "low": 124.091925,
+            "high": 125.464175,
+            "blocks": 1000
+          },
+          "b": {
+            "mean": 125.367,
+            "low": 124.662275,
+            "high": 126.02652499999999,
+            "blocks": 1000
+          },
+          "delta": {
+            "mean": 0.594,
+            "low": 0.366,
+            "high": 0.84205,
+            "blocks": 1000
+          }
+        }
+      }
+    }
+  ]
+}

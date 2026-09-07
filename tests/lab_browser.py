@@ -25,13 +25,15 @@ async def main():
             browser=await pw.chromium.launch(**opts)
             ctx=await browser.new_context(viewport={'width':1440,'height':1000},accept_downloads=True)
             page=await ctx.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
-            response=await page.goto(URL+'/lab.html');assert response.status==200,await page.content();await page.evaluate("localStorage.setItem('dicestrict:casual:v5','SENTINEL-LIVE-MATCH')")
+            response=await page.goto(URL+'/lab.html');assert response.status==200,await page.content();await page.evaluate("localStorage.setItem('dicestrict:casual:v6','SENTINEL-LIVE-MATCH')")
             assert await page.locator('#planned-games').inner_text()=='800'
+            assert await page.locator('[id$=\"-mobility\"]').count()==0
+            assert 'mobility' not in await page.locator('#experiment-preset').inner_html()
             await run(page)
             path=await download(page,'#export-json','lab-report.json');report=json.loads(path.read_text())
             assert report['gamesCompleted']==24 and report['method']['independentSeeds']==3 and not report['failures']
             assert len(report['source']['sha256'])==64
-            assert await page.evaluate("localStorage.getItem('dicestrict:casual:v5')")=='SENTINEL-LIVE-MATCH'
+            assert await page.evaluate("localStorage.getItem('dicestrict:casual:v6')")=='SENTINEL-LIVE-MATCH'
             checks.append('Native module Worker completes paired games without reading or replacing live saves')
             config=OUT/'lab-config.json';config.write_text(json.dumps(report['config']))
             code="import {readFileSync} from 'node:fs';import {runExperiment} from './src/lab/core.js';process.stdout.write(JSON.stringify(runExperiment(JSON.parse(readFileSync(process.argv[1],'utf8')))));"

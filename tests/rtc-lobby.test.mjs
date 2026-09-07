@@ -7,7 +7,7 @@ function fixture(isHost=true,readyState='open'){
   r.isHost=isHost;r.localId=isHost?'host':'guest';
   const remote=isHost?'guest':'host';
   r.room={hostId:'host',members:[{id:'host',name:'Host'},{id:'guest',name:'Guest'}]};
-  r.ready.add(r.localId);r.rules={opening:'classic',rounds:6,mobility:2,finishOnBankruptcy:true,casino:false};
+  r.ready.add(r.localId);r.rules={opening:'classic',rounds:6,finishOnBankruptcy:true,casino:false};
   const peer={ingress:()=>true};r.peers.set(remote,peer);
   const channel={readyState,bufferedAmount:0,send:raw=>sent.push(readPacket(raw))};
   return {r,remote,channel,sent,errors};

@@ -5,10 +5,10 @@ import { createGame, applyAction, currentPlayer, netWorth, ownsGroup, fingerprin
 import { botAction, botDealDecision, BOT_PROFILES } from '../game/bots.js';
 import { casinoAvailability, CASINO_STAKES, CASINO_RESERVE } from '../game/casino.js';
 import { mean, quantile, seedAt, estimate } from './statistics.js';
-const LAB_VERSION=2, POLICY_VERSION=3, MAX_ACTIONS=4000;
+const LAB_VERSION=3, POLICY_VERSION=4, MAX_ACTIONS=4000;
 const DEFAULT_CONFIG=Object.freeze({baseSeed:20260906,samples:100,rotateSeats:true,lineup:['balanced','prudent','builder','collector'],
-  baseline:{rounds:12,mobility:2,finishOnBankruptcy:false,casino:false,casinoPolicy:'none',opening:'classic',negotiation:'none'},
-  candidate:{rounds:12,mobility:2,finishOnBankruptcy:false,casino:true,casinoPolicy:'all-60',opening:'classic',negotiation:'none'}});
+  baseline:{rounds:12,finishOnBankruptcy:false,casino:false,casinoPolicy:'none',opening:'classic',negotiation:'none'},
+  candidate:{rounds:12,finishOnBankruptcy:false,casino:true,casinoPolicy:'all-60',opening:'classic',negotiation:'none'}});
 const METRICS=Object.freeze({rolls:'Tours joués',actions:'Commandes',rounds:'Manches',bankruptcyRate:'Part des joueurs éliminés',
   anyBankruptcy:'Parties avec faillite',levels:'Niveaux construits en fin',owned:'Terrains détenus en fin',
   topWealthShare:'Part du patrimoine du meneur',meanWealth:'Patrimoine moyen final',casinoNet:'Casino : résultat net total',casinoBets:'Mises au casino',dealsProposed:'Offres proposées',dealsAccepted:'Offres acceptées',dealsDeclined:'Offres refusées',tradedLots:'Terrains échangés'});
@@ -26,9 +26,10 @@ function validateConfig(input){
   fail(typeof input.rotateSeats==='boolean'&&Array.isArray(input.lineup)&&input.lineup.length>=2&&input.lineup.length<=4&&input.lineup.every(p=>Object.hasOwn(BOT_PROFILES,p)),'Table de bots invalide.');
   for(const side of ['baseline','candidate']){
     const r=input[side];
-    fail(exactKeys(r,['rounds','mobility','finishOnBankruptcy','casino','casinoPolicy','opening','negotiation']),'Règles expérimentales inconnues.');
+    fail(!r || !Object.hasOwn(r, 'mobility'), 'Configuration historique avec Mobilité : utilisez sa version archivée, sans conversion silencieuse.');
+    fail(exactKeys(r,['rounds','finishOnBankruptcy','casino','casinoPolicy','opening','negotiation']),'Règles expérimentales inconnues.');
     fail(validOpening(r.opening) && ['none','reciprocal'].includes(r.negotiation), 'Ouverture ou négociation inconnue.');
-    fail(integer(r.rounds,4,30)&&integer(r.mobility,0,3)&&typeof r.finishOnBankruptcy==='boolean'&&typeof r.casino==='boolean','Règles hors limites.');
+    fail(integer(r.rounds,4,30)&&typeof r.finishOnBankruptcy==='boolean'&&typeof r.casino==='boolean','Règles hors limites.');
     fail(['none','all-20','all-60','focal-60'].includes(r.casinoPolicy),'Politique casino invalide.');
     fail(r.casino||r.casinoPolicy==='none','Un casino désactivé exige la politique « aucune mise ».');
   }
@@ -54,7 +55,7 @@ function runGame(config,side,seedIndex,rotation,{capture=false,actionLimit=MAX_A
       const seat=seats.findIndex(p=>p.id===actor),result=s.casino.results.find(r=>r.actor===actor);
       casinoNet[seat]+=result.returned-result.stake;casinoBets[seat]++;
     }
-    const landing=action.type==='MOVE'||(action.type==='ROLL'&&player.mobilityTokens===0);
+    const landing=action.type==='ROLL';
     if(landing){
       const id=s.players.find(p=>p.id===actor).position;visits[id]++;
       const owner=before.properties[id].owner;

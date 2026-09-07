@@ -1,0 +1,206 @@
+{
+  "opening": "classic",
+  "casino": {
+    "enabled": false,
+    "rng": 2654435731,
+    "results": []
+  },
+  "version": 5,
+  "id": "legacy-choice",
+  "rng": 2836018348,
+  "revision": 1,
+  "turn": 0,
+  "round": 1,
+  "maxRounds": 12,
+  "phase": "choose",
+  "mobility": 2,
+  "finishOnBankruptcy": false,
+  "turnSerial": 0,
+  "deals": [],
+  "nextDealId": 1,
+  "endReason": null,
+  "players": [
+    {
+      "id": "you",
+      "name": "Vous",
+      "bot": false,
+      "cash": 1800,
+      "position": 0,
+      "bankrupt": false,
+      "mobilityTokens": 2,
+      "dealBudgetTurn": -1,
+      "dealsSent": 0
+    },
+    {
+      "id": "b",
+      "name": "Bot",
+      "bot": true,
+      "cash": 1800,
+      "position": 0,
+      "bankrupt": false,
+      "mobilityTokens": 2,
+      "dealBudgetTurn": -1,
+      "dealsSent": 0
+    }
+  ],
+  "properties": [
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    },
+    {
+      "owner": null,
+      "level": 0,
+      "mortgaged": false
+    }
+  ],
+  "dice": [
+    6,
+    4
+  ],
+  "event": null,
+  "pending": null,
+  "auction": null,
+  "log": [
+    {
+      "text": "Vous lance 6 + 4.",
+      "kind": "move"
+    },
+    {
+      "text": "Aurora vous ouvre ses portes. À vous de bâtir la suite.",
+      "kind": "info"
+    }
+  ],
+  "winners": []
+}

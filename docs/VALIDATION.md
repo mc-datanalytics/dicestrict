@@ -1,4 +1,14 @@
-# Validation — alpha 0.6.1
+# Validation courante — déplacement automatique 0.6.2
+
+Base artistique préservée : main `b5f547c9`. **220 tests Node passent localement**, dont dix nouveaux contrôles dédiés. Les cinq anciens tests de Mobilité ont été remplacés par les exigences de déplacement automatique ; aucun test d’une fonctionnalité conservée n’a été supprimé. Statique : 82 fichiers JavaScript une fois le script de diagnostic inclus. Builds jeu/lab produits.
+
+4 000 trajectoires diagnostiques, zéro échec, configurations et empreintes dans [AUTOMATIC_MOVEMENT.md](AUTOMATIC_MOVEMENT.md). Les preuves 0.6.1 ci-dessous sont historiques et ne valident pas les nouvelles règles.
+
+La recette navigateur locale est bloquée par la politique de navigation. Les suites navigateur sont exécutées par GitHub Actions ; leur conclusion exacte et leurs artefacts figurent dans la PR de suppression de Mobilité. Pas de conclusion de réussite navigateur avant lecture du run courant.
+
+---
+
+## Historique : audit 0.6.1
 
 ## Révision de l’audit
 
