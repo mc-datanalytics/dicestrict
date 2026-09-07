@@ -40,9 +40,14 @@ jobs:
             assets/
           retention-days: 14
 
-  # Full sessions get their own wall-clock budget and clean runner. The test
-  # still plays BOTH openings and checks imported traces: no assertion removed.
+  # Each complete opening gets a clean runner and the original bounded budget.
+  # Both matrix entries are required; every shard also verifies the lab import.
   sessions:
+    name: sessions (${{ matrix.opening }})
+    strategy:
+      fail-fast: false
+      matrix:
+        opening: [classic, comp-60]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -56,7 +61,7 @@ jobs:
       - run: npm run build:lab
       - run: pip install playwright==1.57.0
       - run: python -m playwright install --with-deps chromium
-      - run: python -u tests/playtest_browser.py
+      - run: python -u tests/playtest_browser.py --opening "${{ matrix.opening }}"
         timeout-minutes: 22
       - name: Capture exact session sources
         if: always()
@@ -66,7 +71,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: dicestrict-full-sessions
+          name: dicestrict-full-sessions-${{ matrix.opening }}
           path: |
             test-results/
             source.tar
