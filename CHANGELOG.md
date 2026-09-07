@@ -1,5 +1,13 @@
 # 0.6.0 — Ouverture équitable et essais locaux
 
+## Ville réactive — suite de 0.6.1
+
+- Continuité de circulation lors des investissements, agents locaux bornés et bus aux abribus.
+- Grues articulées sans duplication, effets annulés lorsque leur cause disparaît.
+- Fiche accessible « La ville réagit » et cadrage caméra du terrain.
+- 13 régressions Node et recette graphique dédiée ; règles, protocole et casino inchangés.
+- Voir `docs/CITY_RESPONSE.md` pour les preuves et limites ; aucune fusion automatique.
+
 - Six départs versionnés dans le lab ; classique et comp-60 facultatif dans le jeu. Défaut classique conservé, protocole/sauvegarde v5.
 - Choix préenregistré, confirmation sur graines indépendantes, négociation automatique et sensibilités ; 19 800 trajectoires. Résultat à deux joueurs défavorable, autres scénarios non concluants conservés.
 - Politique de propositions réciproques, indicateurs de transactions, sans accès aux futurs dés.

@@ -23,6 +23,7 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - run: npm run assets:export && npm run assets:review
       - run: python tests/browser.py
+      - run: python tests/city_life_browser.py
       - run: python tests/districts_browser.py
       - run: npm run build:lab
       - run: python tests/lab_browser.py

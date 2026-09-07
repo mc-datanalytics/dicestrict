@@ -1,10 +1,11 @@
+import { CityLife } from './city-life.js';
 import { Harmony, HARMONY_LOTS } from './harmony.js';
 import { CivicCenter } from './civic.js';
 import { Districts, DISTRICT_LOTS } from './districts.js';
 import { Marina, MARINA_LOTS } from './marina.js';
 import { Geometry } from './geometry.js';
 import { model } from './math.js';
-import { deriveCity, cityTransitions, squareRoute, trafficPosition, cityBudget } from './city-state.js';
+import { deriveCity, cityTransitions, squareRoute, cityBudget } from './city-state.js';
 
 const stone='#f3e7cc', ink='#315e55', gold='#e7be66', glass='#8bc4c3';
 function tree(g,x,z,s=.8) {
@@ -123,37 +124,44 @@ function person(color) {
   g.block([-.019,.021,0],[.018,.05,.026],ink);g.block([.019,.021,0],[.018,.05,.026],ink);return g;
 }
 function crane() {
-  const g=new Geometry();g.block([0,.60,0],[.07,1.2,.07],gold);
-  for(let y=.1;y<1.2;y+=.18){g.block([0,y,0],[.13,.025,.13],stone);}
-  g.block([.21,1.21,0],[.94,.065,.08],gold);
-  g.block([.63,.93,0],[.012,.55,.012],ink);
-  g.block([.63,.63,0],[.08,.025,.035],gold);
-  g.block([-.24,1.16,0],[.16,.16,.16],ink);return g;
+  const g=new Geometry();g.block([0,.6,0],[.055,1.2,.055],gold);
+  for(let y=.08;y<1.2;y+=.16)g.block([0,y,0],[.105,.023,.105],stone);
+  g.block([0,.04,0],[.22,.08,.22],ink);return g;
 }
+function craneJib() {
+  const g=new Geometry();g.block([.18,0,0],[.96,.055,.075],gold);
+  g.block([-.25,-.06,0],[.16,.15,.15],ink);
+  g.block([.06,-.055,0],[.12,.10,.11],glass);return g;
+}
+function craneCable() {
+  const g=new Geometry();g.block([0,-.5,0],[.009,1,.009],ink);
+  g.block([0,-1,0],[.065,.025,.03],gold);return g;
+}
+function verticalModel(x,y,z,yaw,height) {const m=model(x,y,z,0,yaw);for(let i=4;i<8;i++)m[i]*=height;return m;}
 class LivingCity {
   constructor(renderer) {
-    this.renderer=renderer;this.city=null;this.elapsed=0;this.cranes=[];this.celebrations=[];this.quality='high';this.reduced=false;this.living=true;
+    this.renderer=renderer;this.life=new CityLife();this.city=null;this.elapsed=0;this.cranes=[];this.celebrations=[];this.quality='high';this.reduced=false;this.living=true;
     this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);this.civic=new CivicCenter(renderer);this.harmony=new Harmony(renderer);
     this.cars=['#db947e','#e0c477','#79b2bb','#e6e3d5'].map(c=>renderer.mesh(vehicle(c)));
     this.bus=renderer.mesh(vehicle('#dcb875','bus'));this.ambulance=renderer.mesh(vehicle('#f1f1df'));
     this.people=['#567d77','#de917b','#b5a2ce','#d9b16b'].map(c=>renderer.mesh(person(c)));
-    this.crane=renderer.mesh(crane());
+    this.crane=renderer.mesh(crane());this.jib=renderer.mesh(craneJib());this.cable=renderer.mesh(craneCable());
     const droplet=new Geometry();droplet.block([0,0,0],[.008,.11,.008],'#abced6');this.drop=renderer.mesh(droplet);
     const spark=new Geometry();spark.block([0,0,0],[.035,.035,.035],gold);spark.material=0;this.spark=renderer.mesh(spark);
     const water=new Geometry();water.sphere([0,0,0],.028,'#c2e6dc',6,4);this.water=renderer.mesh(water);
     const siren=new Geometry();siren.material=3;siren.block([0,0,0],[.12,.04,.06],'#88cfe5');this.siren=renderer.mesh(siren);
   }
-  configure(settings) { this.harmony.configure(settings);this.civic.configure(settings);this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
+  configure(settings) { this.harmony.configure(settings);this.civic.configure(settings);this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});this.life.configure({quality:this.quality,reduced:this.reduced,living:this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
   setState(s) {
     const next=deriveCity(s),reset=this.gameId!==s.id;
     if(!reset&&this.city?.signature===next.signature)return;
     const changes=cityTransitions(reset?null:this.city,next);
-    this.gameId=s.id;this.city=next;this.marina.setCity(next);this.districts.setCity(next);this.harmony.setCity(next);
+    this.gameId=s.id;this.city=next;this.life.setCity(next,reset);this.marina.setCity(next);this.districts.setCity(next);this.harmony.setCity(next);
     if(reset){this.cranes=[];this.celebrations=[];}
     if(!this.reduced&&this.living) {
-      for(const p of changes.construction)this.cranes.push({id:p.id,x:p.x,z:p.z,until:this.elapsed+6});
-      for(const d of changes.celebrations)this.celebrations.push({group:d.id,until:this.elapsed+4});
-      this.cranes=this.cranes.slice(-16);this.celebrations=this.celebrations.slice(-8);
+      for(const p of changes.construction){this.cranes=this.cranes.filter(c=>c.id!==p.id);this.cranes.push({id:p.id,owner:p.owner,tier:p.tier,x:p.x,z:p.z,until:this.elapsed+6});}
+      for(const d of changes.celebrations)this.celebrations.push({group:d.id,owner:d.owner,until:this.elapsed+4});
+      this.cranes=this.cranes.filter(c=>{const p=next.parcels.find(p=>p.id===c.id);return p.active&&p.owner===c.owner&&p.tier>=c.tier;}).slice(-16);this.celebrations=this.celebrations.filter(c=>next.districts[c.group].owner===c.owner).slice(-8);
     }
     this.renderer.drop(this.parcelMesh);this.parcelMesh=this.renderer.mesh(parcelGeometry(next));
   }
@@ -163,21 +171,12 @@ class LivingCity {
     if(!this.city)return out;
     const running=this.living&&!this.reduced,t=running?seconds:0,budget=cityBudget(this.city,this.quality,this.reduced,this.living);
     this.stats={...budget,owned:this.city.owned,development:this.city.development};
-    for(let i=0;i<budget.cars;i++) {
-      const p=trafficPosition(i/budget.cars+t*.007,this.city);
-      out.push({mesh:this.cars[i%4],model:model(p.x,.414,p.z,0,p.yaw),noShadow:true});
-    }
-    if(running)for(let i=0;i<2;i++) {
-      const p=squareRoute(t*.045+i*2,6.98);
-      out.push({mesh:this.bus,model:model(p.x,.414,p.z,0,p.yaw),noShadow:true});
-    }
-    // Weighted, locally walking crowds keep developed blocks visibly busier.
-    const candidates=[];for(const p of this.city.parcels)for(let j=0;j<p.activity*2;j++)candidates.push({p,j});
-    for(let i=0;i<budget.pedestrians;i++) {
-      const {p,j}=candidates[Math.floor(i*candidates.length/budget.pedestrians)];
-      const q=squareRoute(j*.73+t*(.15+(i%3)*.025),.49);
-      out.push({mesh:this.people[i%4],model:model(p.x+q.x,.49+Math.abs(Math.sin(t*7+i))*.007,p.z+q.z,0,q.yaw),noShadow:true});
-    }
+    const life=this.life.step(seconds);
+    this.stats.cars=life.cars.length;this.stats.pedestrians=life.pedestrians.length;
+    this.stats.busStops=life.buses.filter(b=>b.waiting).length;
+    for(const p of life.cars)out.push({mesh:this.cars[p.slot%4],model:model(p.x,.414,p.z,0,p.yaw,0,p.scale),noShadow:true});
+    for(const p of life.buses)out.push({mesh:this.bus,model:model(p.x,.414,p.z,0,p.yaw),noShadow:true});
+    for(const p of life.pedestrians)out.push({mesh:this.people[p.slot%4],model:model(p.x,.49+(p.visiting?0:Math.abs(Math.sin(t*7+p.slot))*.007),p.z,0,p.yaw,0,p.scale),noShadow:true});
     if(running) {
       // Short surface metro trip between the two portals; local ambient clock only.
       const progress=(t%28)/28;
@@ -194,7 +193,12 @@ class LivingCity {
       }
     }
     this.cranes=this.cranes.filter(c=>c.until>t);
-    for(const c of this.cranes)out.push({mesh:this.crane,model:model(c.x+.38,.48,c.z-.38,0,Math.sin(t*.4)*.35),noShadow:true});
+    for(const c of this.cranes) {
+      const height=1.15+c.tier*.43,yaw=Math.sin(t*.4)*.4,x=c.x+.53,z=c.z-.53,rope=.28+(Math.sin(t*1.3)+1)*.22;
+      out.push({mesh:this.crane,model:verticalModel(x,.48,z,0,height/1.2),noShadow:true},
+        {mesh:this.jib,model:model(x,.48+height,z,0,yaw),noShadow:true},
+        {mesh:this.cable,model:verticalModel(x+Math.cos(yaw)*.6,.48+height,z-Math.sin(yaw)*.6,0,rope),noShadow:true});
+    }
     this.celebrations=this.celebrations.filter(c=>c.until>t);
     for(const c of this.celebrations)for(const p of this.city.parcels.filter(p=>p.group===c.group))for(let i=0;i<6;i++) {
       const a=i*Math.PI/3+t*.8;
