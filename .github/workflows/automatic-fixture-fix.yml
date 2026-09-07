@@ -1,0 +1,33 @@
+name: Automatic movement fixture correction
+on:
+  push:
+    branches: ['feat/remove-mobility']
+    paths: ['.github/workflows/automatic-fixture-fix.yml']
+permissions:
+  contents: write
+jobs:
+  correct-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - name: Remove obsolete option from the casino scenario without changing assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          p=Path('tests/browser.py');s=p.read_text()
+          assert sha256(s.encode()).hexdigest()=='83c9b4fe4862d8ec5040c8a61aa39df1e8fcc1bb5cb73633e783ec6ab40c9a18'
+          assert s.count('casino:true,mobility:2')==1
+          s=s.replace('casino:true,mobility:2','casino:true')
+          assert sha256(s.encode()).hexdigest()=='8263b4d0d2d82003fbfab9be9277d0fe911174e098907528b6a0f2922e4c3dd2'
+          p.write_text(s)
+          PY
+          python -m py_compile tests/browser.py
+      - name: Commit fixture only on feature branch
+        run: |
+          git add tests/browser.py
+          git -c user.name='M&G Group' -c user.email='119437439+mc-datanalytics@users.noreply.github.com' commit -m 'test: remove retired mobility parameter from casino browser fixture'
+          git push origin HEAD:refs/heads/feat/remove-mobility
