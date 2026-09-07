@@ -1,1 +1,3 @@
-export {FINISH_FRAGMENT as MARINA_FRAGMENT} from '../finish/shader.js';
+import {FINISH_FRAGMENT} from '../finish/shader.js';
+const MARINA_FRAGMENT=FINISH_FRAGMENT;
+export {MARINA_FRAGMENT};

@@ -42,3 +42,8 @@ test('effects have bounded reusable geometry, no random/time source, and low det
  for(const name of ['burst','dust','scan']){const a=effectMesh(name,'low'),b=effectMesh(name,'high');assert.ok(a.indices.length<=b.indices.length);assert.ok(b.indices.length/3<=48);assert.equal(hash(new Uint8Array(b.data.buffer)),hash(new Uint8Array(effectMesh(name,'high').data.buffer)));for(let i=0;i<b.data.length;i+=12)assert.equal(b.data[i+11],23);}
  assert.throws(()=>effectMesh('missing'));
 });
+
+test('standalone game/gallery ESM subset bundles into valid JavaScript, not just source syntax',async()=>{
+ const {bundle}=await import('../scripts/bundle.mjs');const {Script}=await import('node:vm');const {resolve}=await import('node:path');
+ const root=resolve(import.meta.dirname,'..');for(const entry of ['src/main.js','src/scene/districts/review.js']){const source=await bundle(root,entry);assert.doesNotThrow(()=>new Script(source,{filename:entry}));}
+});

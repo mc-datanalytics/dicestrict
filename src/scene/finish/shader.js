@@ -22,14 +22,15 @@ vec3 microNormal(vec3 n,vec2 map){
 }
 vec3 seaShade(vec3 n,float shadow){
  vec3 v=normalize(uCamera-vWorld),l=normalize(vec3(-.5,.9,.55));
- float a=vWorld.x*4.7+vWorld.z*3.2+uTime*.48,b=vWorld.x*2.2-vWorld.z*5.1+uTime*.37;
+ float a=vWorld.x*14.7+vWorld.z*9.2+sin(vWorld.z*3.1)*1.6+uTime*.48,b=vWorld.x*7.2-vWorld.z*15.1+cos(vWorld.x*2.7)*1.4+uTime*.37;
  float aa=1./(1.+fwidth(a)*1.8);n=normalize(vec3((sin(a)+sin(b)*.45)*.07*aa,1.,cos(b)*.055*aa));
  float edge=max(abs(vWorld.x),abs(vWorld.z))-7.60;
  vec3 color=mix(vec3(.028,.13,.18),vec3(.05,.29,.33),exp(-max(edge,0.)*.72));
  color*=1.-shadow*.58;color*=mix(vec3(1.),vec3(.24,.40,.63),uNight);
  color+=vec3(.08,.17,.19)*pow(max(dot(n,normalize(v+l)),0.),95.)*aa*(1.-uNight*.8);
- color+=vec3(.015,.025,.026)*sin(a+b*.38)*aa;
- return pow(max(color,vec3(0.)),vec3(.85));
+ color+=vec3(.003,.006,.007)*sin(a+b*.38)*aa;
+ vec3 haze=vec3(.955,.950,.924)-uNight*vec3(.19,.17,.12);
+ return mix(pow(max(color,vec3(0.)),vec3(.85)),haze,smoothstep(.20,2.80,max(edge,0.)));
 }
 vec3 marinaShade(vec3 color,vec3 normal,float diffuse,float shadow){
  int m=int(vTex+.5);vec3 n=normal,v=normalize(uCamera-vWorld),l=normalize(vec3(-.5,.9,.55));
