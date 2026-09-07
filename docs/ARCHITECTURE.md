@@ -12,7 +12,7 @@ Les modules natifs ESM du navigateur et du lab Node partagent `src/game/engine.j
 
 `negotiator.js` propose des échanges réciproques à partir des biens et fonds visibles, sans futurs tirages. Les deux parties complètent chacune un quartier, avec différence de prix et réserve contrôlées. Les bots du jeu l'utilisent ; le lab l'active explicitement selon sa configuration. Le moteur continue à revérifier toutes les transactions atomiquement. Pas de fonds réservés, cadeau gratuit, hypothèque ou quartier construit échangeable. La politique n'est pas un modèle complet du comportement humain.
 
-`turnSerial` compte les fins de tour ordinaires pour les quotas et expirations. Les offres et identifiants sont bornés. Une acceptation tardive reste liée au même jeu, ne peut venir d'une révision future et est revérifiée sur l'état courant ; une commande ordinaire exige une révision exacte. Les règles sont annoncées par `lobby-rules` puis verrouillées au départ. La mobilité attend un choix après les dés si le joueur possède encore des jetons ; la case d'arrivée et le bonus de passage ne sont résolus qu'une fois.
+`turnSerial` compte les fins de tour ordinaires pour les quotas et expirations. Les offres et identifiants sont bornés. Une acceptation tardive reste liée au même jeu, ne peut venir d'une révision future et est revérifiée sur l'état courant ; une commande ordinaire exige une révision exacte. Les règles sont annoncées par `lobby-rules` puis verrouillées au départ. ROLL tire les dés, déplace le pion de leur total et résout la case d'arrivée dans une seule transition. Le passage au départ est crédité une seule fois. Aucun jeton, phase choose ou commande MOVE n'existe dans les règles v6.
 
 ## Scène, lab et essais enregistrés
 

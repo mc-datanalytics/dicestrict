@@ -28,7 +28,7 @@ Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le l
 
 ## 0.6.2 : un lancer, un déplacement
 
-**Mobilité est supprimée, pas masquée ni déplacée dans les réglages.** Le total des deux dés déplace le pion et résout immédiatement l’arrivée. Achats, enchères, loyers et négociations restent les décisions du joueur. Aucune deuxième confirmation, aucun jeton et aucune option avancée de déplacement.
+**Mobilité est supprimée, pas masquée ni déplacée dans les réglages.** Le total des deux dés déplace le pion et résout immédiatement l’arrivée. La stratégie reste dans les achats, enchères, investissements et négociations ; les loyers et effets des cases sont automatiques. Aucune deuxième confirmation, aucun jeton et aucune option avancée de déplacement.
 
 Le moteur refuse l’ancienne commande `MOVE` et la phase `choose`. Le lab n’offre plus cette règle. Les sauvegardes v5 restent intactes sous leur ancienne clé ; la v6 commence une nouvelle partie et le signale. [Changements, migration et nouveau diagnostic](docs/AUTOMATIC_MOVEMENT.md).
 
