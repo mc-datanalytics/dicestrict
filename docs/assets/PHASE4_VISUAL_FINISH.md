@@ -57,13 +57,15 @@ Sources : `src/scene/harmony/extensions.js`, `src/scene/finish/`, `scripts/asset
 
 Le workflow `visual-finish.yml` sépare preuve et mesures. L'avant est le vrai `main b5f547c9`, servi sur une autre origine, pas une fonction qui masque des objets. `civicFixtures()` et `waterfrontFixtures()` fournissent des historiques légaux déterministes. Dimensions 1600 × 1000, DPR 1, état, horloge et caméra identiques dans chaque paire. Caméra principale : angle 0,5, inclinaison 0,85, zoom 1, cible normale. Les vues obliques (inclinaison 0,63 / zoom 1,12) et le zoom 1,5 restent accessibles au joueur. Les vues studio servent seulement de complément.
 
-Le diagnostic ABBA bas/haut, figé/animé, conserve six mesures après deux chauffes par bloc. Une lecture synchrone d'un pixel mesure rendu logiciel et synchronisation, pas le seul GPU matériel. Les nouvelles ressources sont testées après perte de contexte, au repos et pendant les transitions. Les scénarios WebRTC complets Classique et comp-60 restent séparés, avec leurs assertions et délais d'origine.
+Le diagnostic ABBA bas/haut, figé/animé, conserve six mesures après deux chauffes par bloc. Une lecture synchrone d'un pixel mesure rendu logiciel et synchronisation, pas le seul GPU matériel. Les nouvelles ressources sont testées après perte de contexte, au repos et pendant les transitions. Les scénarios WebRTC complets Classique et comp-60 restent séparés, avec leurs assertions et délais de convergence d'origine. Seule la limite globale de l'étape CI passe de 22 à 25 minutes (job borné à 28 minutes), car le rendu logiciel simultané de quatre navigateurs a dépassé l'ancien budget de quelques secondes.
 
 ## Défauts trouvés pendant la mise au point
 
 La première preuve native a montré une eau extérieure trop striée et un contraste insuffisant derrière le titre inchangé. Les ondulations et le fondu spatial ont été corrigés. La galerie a révélé un réexport non supporté par le bundler ESM minimal : import/export explicite et test syntaxique sur les bundles produits ajoutés.
 
 Le code `86108430` a mesuré un surcoût SwiftShader de 45–49 % par rapport au vrai main. Un premier allègement du shader n'a pas démontré de gain ; ne pas annoncer de non-régression temporelle ou de performances mobiles. La suite quartiers a également observé 18 949 206 octets de buffers après des zooms, dépassant la limite de 18 Mio. La borne en octets du cache corrige ce problème ; le seuil du test n'est pas relevé. Les résultats des anciennes exécutions échouées ne constituent pas une validation finale. Consulter le commit effectivement testé et ses rapports dans la PR #10.
+
+Les journaux du run `34158220245` montrent la progression continue de la session Classique, 147 commandes, trace vérifiée et import du laboratoire réussi, avant une conclusion CI timeout à 22 minutes. La session comp-60 a également exporté ses 147 commandes avant son interruption. Ces sorties ne sont pas présentées comme une CI réussie ; la nouvelle limite globale est bornée, les contrôles fonctionnels et leur ordre sont inchangés, et toute la recette est relancée.
 
 ## Matériel restant à tester
 
