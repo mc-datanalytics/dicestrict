@@ -46,7 +46,7 @@ class BoardScene {
     this.canvas=canvas;this.onSelect=onSelect;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.renderer=new Renderer(canvas,atlas());this.staticMesh=this.renderer.mesh(cityGeometry());this.tokens=COLORS.map(c=>this.renderer.mesh(token(c)));this.diceMesh=this.renderer.mesh(dice());
     this.city=new LivingCity(this.renderer);this.ambientTime=0;this.lastAmbientFrame=null;this.living=true;this.dayMode='auto';this.weather=true;
-    this.angle=.50;this.pitch=.85;this.zoom=1;this.time=0;this.selected=1;this.paths=[];this.lastRoll=-99999;this.state=null;this.dirty=true;
+    this.viewTarget=[0,.3,0];this.angle=.50;this.pitch=.85;this.zoom=1;this.time=0;this.selected=1;this.paths=[];this.lastRoll=-99999;this.state=null;this.dirty=true;
     this.abort=new AbortController();const opts={signal:this.abort.signal};
     canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.lost=true;cancelAnimationFrame(this.raf);onError('Le contexte graphique est interrompu. Restauration en attente ; la partie reste accessible.');},opts);
     canvas.addEventListener('webglcontextrestored',()=>{
@@ -74,11 +74,15 @@ class BoardScene {
     if(living!==undefined)this.living=living;if(dayMode)this.dayMode=dayMode;if(weather!==undefined)this.weather=weather;
     this.city.configure(settings);this.dirty=true;
   }
-  view(mode){if(mode==='top'){this.pitch=1.42;this.angle=0;this.zoom=1.1;}else if(mode==='reset'){this.pitch=.85;this.angle=.50;this.zoom=1;}else this.zoom=clamp(this.zoom*(mode==='in'?1.12:.89),.72,1.5);this.dirty=true;}
+  view(mode){if(mode==='reset'||mode==='top')this.viewTarget=[0,.3,0];if(mode==='top'){this.pitch=1.42;this.angle=0;this.zoom=1.1;}else if(mode==='reset'){this.pitch=.85;this.angle=.50;this.zoom=1;}else this.zoom=clamp(this.zoom*(mode==='in'?1.12:.89),.72,1.5);this.dirty=true;}
+  focusParcel(id){
+    const p=this.city.city?.parcels.find(p=>p.id===id);if(!p)return false;
+    this.viewTarget=[p.x,.65,p.z];this.zoom=1.5;this.pitch=.85;this.dirty=true;return true;
+  }
   setSelected(id){this.selected=id;this.updateOwnership();this.dirty=true;}
   setState(s){
     const now=performance.now();
-    const sameMatch=this.state?.id===s.id;
+    const sameMatch=this.state?.id===s.id;if(!sameMatch)this.viewTarget=[0,.3,0];
     if(this.state&&s.revision!==this.state.revision&&s.dice&&(s.players.some((p,i)=>p.position!==this.state.players[i]?.position))){this.lastRoll=now;}
     this.paths=s.players.map((p,i)=>{
       if(sameMatch && p.position===this.state.players[i]?.position && this.paths[i])return this.paths[i];
@@ -122,7 +126,7 @@ class BoardScene {
     const rect=this.canvas.getBoundingClientRect(),aspect=rect.width/Math.max(rect.height,1);
     this.renderer.resize(rect.width,rect.height,Math.min(devicePixelRatio||1,this.renderer.shadows?1.7:1.0));
     const extent=(aspect<1.15?10.1/aspect:9.0)/this.zoom;
-    const target=this.captureTarget??[0,.3,0];
+    const target=this.captureTarget??this.viewTarget;
     const eye=[target[0]+Math.sin(this.angle)*24*Math.cos(this.pitch),target[1]-.3+Math.sin(this.pitch)*24,target[2]+Math.cos(this.angle)*24*Math.cos(this.pitch)];
     this.renderer.camera=eye;this.city.marina.selectDetail(rect.height/(2*extent));this.city.districts.selectDetail(rect.height/(2*extent));this.city.civic.selectDetail(rect.height/(2*extent));this.city.harmony.selectDetail(rect.height/(2*extent));
     this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,target));

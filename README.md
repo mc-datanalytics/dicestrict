@@ -26,6 +26,10 @@ npm run preview
 
 Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le lab inclut son Worker et ne touche pas aux sauvegardes du jeu. Le jeu autonome permet le mode local ; le multijoueur nécessite une signalisation. Le lab est exclu du build ordinaire et de CrazyGames.
 
+## Suite de la ville vivante
+
+Circulation et passants à identités stables, virages arrondis, bus marquant leurs arrêts, grues articulées et fiche **La ville réagit**, avec inspection caméra. L’économie et les crédits du casino restent inchangés. [Périmètre, budgets et validation](docs/CITY_RESPONSE.md).
+
 ## 0.6.1 : correctifs de fiabilité
 
 Exports d’essais limités à la partie enregistrée, résultats conservés après resynchronisation, envois réseau en file bornée plutôt qu’abandonnés en cas de congestion, handshake relancé, suspension propagée aux autres pairs et snapshots anciens refusés. **118 tests Node**, dont 21 nouveaux contrôles ciblés. Les montants, dés et options de départ ne changent pas. [Détails de l’audit](docs/BUGFIX_AUDIT_0_6_1.md) et [preuve de validation](docs/VALIDATION.md).
