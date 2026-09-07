@@ -40,7 +40,7 @@ jobs:
             assets/
           retention-days: 14
 
-  # Each complete opening gets a clean runner and the original bounded budget.
+  # Each complete opening gets a clean runner and a bounded software-render budget.
   # Both matrix entries are required; every shard also verifies the lab import.
   sessions:
     name: sessions (${{ matrix.opening }})
@@ -49,7 +49,7 @@ jobs:
       matrix:
         opening: [classic, comp-60]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 28
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -62,7 +62,7 @@ jobs:
       - run: pip install playwright==1.57.0
       - run: python -m playwright install --with-deps chromium
       - run: python -u tests/playtest_browser.py --opening "${{ matrix.opening }}"
-        timeout-minutes: 22
+        timeout-minutes: 25
       - name: Capture exact session sources
         if: always()
         run: |

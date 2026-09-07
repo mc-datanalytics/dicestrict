@@ -1,0 +1,49 @@
+name: Phase 4 visual finish
+on:
+  push:
+    branches: [feat/phase4-visual-finish]
+  pull_request:
+    paths: ['src/scene/**', 'scripts/assets/**', 'tests/visual*', '.github/workflows/visual-finish.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    name: native (${{ matrix.section }})
+    strategy:
+      fail-fast: false
+      matrix:
+        section: [proof, measures]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with: {fetch-depth: 0}
+      - uses: actions/setup-node@v6
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - run: npm run check && npm test && npm run build
+      - run: npm run assets:export && node scripts/assets/export-civic.mjs && node scripts/assets/export-harmony.mjs && node scripts/assets/export-finish.mjs && npm run assets:review
+      - run: pip install playwright==1.57.0 && python -m playwright install --with-deps chromium
+      - name: Pinned actual main baseline
+        run: |
+          mkdir -p test-results/visual-baseline
+          git archive b5f547c97ce8387f1c31b25bef3a29952d0a94a7 | tar -x -C test-results/visual-baseline
+      - run: python -u tests/visual_finish_browser.py --section "${{ matrix.section }}"
+        timeout-minutes: 15
+      - name: Exact source
+        if: always()
+        run: |
+          git rev-parse HEAD > test-results/visual-finish/commit.txt
+          git archive --format=tar -o source.tar HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4-visual-${{ matrix.section }}
+          path: |
+            source.tar
+            dist/
+            assets/
+            test-results/visual-finish/
+          retention-days: 14

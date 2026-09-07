@@ -23,11 +23,11 @@ function atlas(){
 function uv(id){const x=id%8*256,y=Math.floor(id/8)*256;return [(x+2)/2048,1-(y+254)/1024,(x+254)/2048,1-(y+2)/1024];}
 function cityGeometry(){
   const g=new Geometry();
-  g.block([0,-.67,0],[150,.08,150],'#f4f2e9');
-  g.box([0,-.14,0],[15.3,.78,15.3],'#9bb6a7',.25);
-  g.box([0,.13,0],[15.18,.32,15.18],'#e3e8d8',.18);
-  g.box([0,.32,0],[14.98,.08,14.98],'#c8d9c4',.12);
-  g.box([0,.37,0],[9.54,.10,9.54],'#a5c3ac',.12);
+  g.material=21;g.block([0,-.67,0],[150,.08,150],'#205d70');g.material=0;
+  g.box([0,-.14,0],[15.3,.78,15.3],'#6a7168',.25);
+  g.box([0,.13,0],[15.18,.32,15.18],'#b5a483',.18);
+  g.box([0,.32,0],[14.98,.08,14.98],'#c9ba99',.12);
+  g.box([0,.37,0],[9.54,.10,9.54],'#899979',.12);
   g.quad([.4,.525,2.6],2.20,.85,uv(28));
   g.box([.1,.47,3.38],[2.45,.08,.95],'#d0ddc5',.1);
   for(const t of BOARD){const [x,z]=tilePosition(t.id);g.box([x,.40,z],[1.49,.21,1.49],'#fffff6',.09);g.quad([x,.509,z],1.37,1.37,uv(t.id));}
@@ -124,7 +124,7 @@ class BoardScene {
     const extent=(aspect<1.15?10.1/aspect:9.0)/this.zoom;
     const target=this.captureTarget??[0,.3,0];
     const eye=[target[0]+Math.sin(this.angle)*24*Math.cos(this.pitch),target[1]-.3+Math.sin(this.pitch)*24,target[2]+Math.cos(this.angle)*24*Math.cos(this.pitch)];
-    this.renderer.camera=eye;this.city.marina.selectDetail(rect.height/(2*extent));this.city.districts.selectDetail(rect.height/(2*extent));this.city.civic.selectDetail(rect.height/(2*extent));this.city.harmony.selectDetail(rect.height/(2*extent));
+    this.renderer.camera=eye;this.city.marina.selectDetail(rect.height/(2*extent));this.city.districts.selectDetail(rect.height/(2*extent));this.city.civic.selectDetail(rect.height/(2*extent));this.city.harmony.selectDetail(rect.height/(2*extent));this.city.publicRealm.selectDetail(rect.height/(2*extent));
     this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,target));
     const objects=[{mesh:this.staticMesh,model:identity()},...this.city.objects(this.ambientTime,this.renderer.weather)];if(this.ownerMesh)objects.push({mesh:this.ownerMesh});
     if(this.state)for(let i=0;i<this.state.players.length;i++){
