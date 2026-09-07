@@ -1,3 +1,6 @@
+import {effectMesh} from './finish/effects.js';
+import {rgb} from './marina/mesh-builder.js';
+import {PublicRealm} from './finish/public.js';
 import { Harmony, HARMONY_LOTS } from './harmony.js';
 import { CivicCenter } from './civic.js';
 import { Districts, DISTRICT_LOTS } from './districts.js';
@@ -80,24 +83,15 @@ function infrastructure() {
   const g=new Geometry();
   // Two closed roads. The outside bus lane never obscures the property labels.
   for(const radius of [4.48,6.98])for(const side of [-1,1]) {
-    g.block([0,.378,side*radius],[radius*2+.5,.04,.48],'#748c84');
-    g.block([side*radius,.379,0],[.48,.04,radius*2+.5],'#748c84');
-    for(let x=-radius+.5;x<radius-.3;x+=.65) {
+    g.material=22;g.block([0,.378,side*radius],[radius*2+.5,.04,.48],'#3f5457');
+    g.block([side*radius,.379,0],[.48,.04,radius*2+.5],'#3f5457');
+    g.material=0;for(let x=-radius+.5;x<radius-.3;x+=.65) {
       g.block([x,.402,side*radius],[.25,.007,.025],stone);
       g.block([side*radius,.402,x],[.025,.007,.25],stone);
     }
   }
   // The park paths, fountain and casino now belong to the continuous civic corridor.
-  // Small civic pavilion, intentionally not linked to ownership.
-  tower(g,1.3,-1.65,.70,.78,.73,stone,true);
-  g.cylinder([1.3,1.35,-1.65],.34,.20,'#89aa95',12,.07);
-  // Metro portals and a surface segment: a modest tram/metro visual, not a transport rule.
-  for(const x of [-2.25,2.3]) {
-    g.block([x,.45,-2.55],[.58,.09,.42],ink);
-    g.box([x,.69,-2.55],[.63,.43,.48],stone,.035);
-    g.block([x,.67,-2.29],[.4,.3,.03],ink);
-    g.material=3;g.block([x,.98,-2.55],[.16,.18,.03],'#70c6d1');g.material=0;
-  }
+  // Pavilion and metro moved to the reusable indexed PublicRealm kit.
   for(const z of [-2.51,-2.68])g.block([0,.42,z],[4.1,.02,.025],'#b7b2a3');
   // Zebra crossings and bus shelters.
   for(const z of [-4.48,4.48])for(let i=0;i<5;i++)g.block([.5+(i-2)*.10,.405,z],[.055,.009,.42],stone);
@@ -133,22 +127,22 @@ function crane() {
 class LivingCity {
   constructor(renderer) {
     this.renderer=renderer;this.city=null;this.elapsed=0;this.cranes=[];this.celebrations=[];this.quality='high';this.reduced=false;this.living=true;
-    this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);this.civic=new CivicCenter(renderer);this.harmony=new Harmony(renderer);
+    this.staticMesh=renderer.mesh(infrastructure());this.marina=new Marina(renderer);this.districts=new Districts(renderer);this.civic=new CivicCenter(renderer);this.harmony=new Harmony(renderer);this.publicRealm=new PublicRealm(renderer);
     this.cars=['#db947e','#e0c477','#79b2bb','#e6e3d5'].map(c=>renderer.mesh(vehicle(c)));
     this.bus=renderer.mesh(vehicle('#dcb875','bus'));this.ambulance=renderer.mesh(vehicle('#f1f1df'));
     this.people=['#567d77','#de917b','#b5a2ce','#d9b16b'].map(c=>renderer.mesh(person(c)));
-    this.crane=renderer.mesh(crane());
+    this.crane=renderer.mesh(crane());this.fx={};for(const lod of ['low','high'])for(const kind of ['burst','dust','scan'])this.fx[`${kind}:${lod}`]=renderer.mesh(effectMesh(kind,lod));
     const droplet=new Geometry();droplet.block([0,0,0],[.008,.11,.008],'#abced6');this.drop=renderer.mesh(droplet);
     const spark=new Geometry();spark.block([0,0,0],[.035,.035,.035],gold);spark.material=0;this.spark=renderer.mesh(spark);
     const water=new Geometry();water.sphere([0,0,0],.028,'#c2e6dc',6,4);this.water=renderer.mesh(water);
     const siren=new Geometry();siren.material=3;siren.block([0,0,0],[.12,.04,.06],'#88cfe5');this.siren=renderer.mesh(siren);
   }
-  configure(settings) { this.harmony.configure(settings);this.civic.configure(settings);this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
+  configure(settings) { this.publicRealm.configure(settings);this.harmony.configure(settings);this.civic.configure(settings);this.marina.configure(settings);this.districts.configure(settings);Object.assign(this,{quality:settings.quality??this.quality,reduced:settings.reduced??this.reduced,living:settings.living??this.living});if(this.reduced||!this.living){this.cranes=[];this.celebrations=[];} }
   setState(s) {
     const next=deriveCity(s),reset=this.gameId!==s.id;
     if(!reset&&this.city?.signature===next.signature)return;
     const changes=cityTransitions(reset?null:this.city,next);
-    this.gameId=s.id;this.city=next;this.marina.setCity(next);this.districts.setCity(next);this.harmony.setCity(next);
+    this.gameId=s.id;this.city=next;this.marina.setCity(next);this.districts.setCity(next);this.harmony.setCity(next);this.renderer.setGroundCity?.(next);
     if(reset){this.cranes=[];this.celebrations=[];}
     if(!this.reduced&&this.living) {
       for(const p of changes.construction)this.cranes.push({id:p.id,x:p.x,z:p.z,until:this.elapsed+6});
@@ -159,7 +153,7 @@ class LivingCity {
   }
   objects(seconds,rain=0) {
     this.elapsed=seconds;
-    const out=[{mesh:this.staticMesh},...this.marina.objects(seconds),...this.districts.objects(),...this.civic.objects(),...this.harmony.objects()];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
+    const out=[{mesh:this.staticMesh},...this.marina.objects(seconds),...this.districts.objects(),...this.civic.objects(),...this.harmony.objects(),...this.publicRealm.objects()];if(this.parcelMesh)out.push({mesh:this.parcelMesh});
     if(!this.city)return out;
     const running=this.living&&!this.reduced,t=running?seconds:0,budget=cityBudget(this.city,this.quality,this.reduced,this.living);
     this.stats={...budget,owned:this.city.owned,development:this.city.development};
@@ -196,9 +190,15 @@ class LivingCity {
     this.cranes=this.cranes.filter(c=>c.until>t);
     for(const c of this.cranes)out.push({mesh:this.crane,model:model(c.x+.38,.48,c.z-.38,0,Math.sin(t*.4)*.35),noShadow:true});
     this.celebrations=this.celebrations.filter(c=>c.until>t);
-    for(const c of this.celebrations)for(const p of this.city.parcels.filter(p=>p.group===c.group))for(let i=0;i<6;i++) {
-      const a=i*Math.PI/3+t*.8;
-      out.push({mesh:this.spark,model:model(p.x+Math.cos(a)*.55,1+((t+i*.1)%1)*1.4,p.z+Math.sin(a)*.55),noShadow:true});
+    const fxLOD=this.quality==='low'?'low':'high';
+    if(running){
+      for(const c of this.cranes.slice(-(this.quality==='low'?2:4))){
+        const age=t-(c.until-6);if(age<3){const p=this.city.parcels.find(p=>p.id===c.id);const common={model:model(c.x,.50,c.z),noShadow:true,effect:true,effectAge:age,tint:rgb(p?.color??gold)};
+          out.push({...common,mesh:this.fx[`scan:${fxLOD}`],effectKind:2});
+          if(age<2.4&&this.quality!=='low')out.push({...common,mesh:this.fx[`dust:${fxLOD}`],effectKind:1});
+        }
+      }
+      for(const c of this.celebrations.slice(-2))for(const p of this.city.parcels.filter(p=>p.group===c.group))out.push({mesh:this.fx[`burst:${fxLOD}`],model:model(p.x,.60,p.z),tint:rgb(p.color),effect:true,effectKind:0,effectAge:t-(c.until-4),noShadow:true});
     }
     if(running&&rain>.1)for(let i=0;i<budget.rain;i++) {
       const x=((i*1.618)%1-.5)*9,z=((i*.731)%1-.5)*9,y=3.5-((t*1.25+i*.38)%1)*3;

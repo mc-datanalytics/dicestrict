@@ -2,8 +2,9 @@
 import { MeshBuilder } from '../marina/mesh-builder.js';
 import { MATERIALS as M } from '../marina/surfaces.js';
 import {C,B,R,base,planter,cedar,rail,shell,hip,barrel,pergola,steps} from './architecture.js';
-const HARMONY_FAMILIES=Object.freeze(['roseraie']);
-const HARMONY_BUDGETS=Object.freeze({roseraie:[3200,5200]});
+import {jardins,nova,solstice} from './extensions.js';
+const HARMONY_FAMILIES=Object.freeze(['jardins','nova','roseraie','solstice']);
+const HARMONY_BUDGETS=Object.freeze({jardins:[3400,5600],nova:[3600,5800],roseraie:[3200,5200],solstice:[4400,7400]});
 function roseraie(g,level,variant,fine){
  if(variant===0){
   // Villa Rosée: staggered hipped roofs, courtyard and timber loggia, never a pink tower.
@@ -36,7 +37,7 @@ function roseraie(g,level,variant,fine){
 function createHarmonyAsset(family,level=0,variant=0,lod='low'){
  if(!HARMONY_FAMILIES.includes(family)||!Number.isInteger(level)||level< -1||level>3||![0,1].includes(variant)||!['low','high'].includes(lod))throw Error('Invalid harmony asset');
  const g=new MeshBuilder();base(g,family,level);
- if(level>=0)roseraie(g,level,variant,lod==='high');
+ if(level>=0)({jardins,nova,roseraie,solstice})[family](g,level,variant,lod==='high');
  const result=g.build(`${family}-${variant}-level-${level}-${lod}`);
  const budget=HARMONY_BUDGETS[family][lod==='high'?1:0];if(result.indices.length/3>budget)throw Error(`${result.name}: ${result.indices.length/3} exceeds ${budget} triangles`);
  return result;

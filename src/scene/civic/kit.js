@@ -97,8 +97,8 @@ function casino(lod){
   for(const x of [-.73,.73])g.rod([x-.21,.985,-.505],[x+.21,.985,-.505],.014,C.brass,M.metal,6);
   // Small original lettering integrated into the canopy frieze (no giant sign).
   const font={C:['111','100','100','100','111'],A:['010','101','111','101','101'],S:['111','100','111','001','111'],I:['111','010','010','010','111'],N:['101','111','111','111','101'],O:['111','101','101','101','111']};
-  g.box([0,.708,.696],[.57,.092,.02],C.dark,M.paint);
-  [...'CASINO'].forEach((c,i)=>font[c].forEach((r,y)=>[...r].forEach((v,x)=>{if(v==='1')g.box([-.254+i*.088+x*.022,.74-y*.016,.710],[.017,.012,.009],C.brass,M.metal);}))); 
+  g.box([0,.708,.696],[.76,.124,.024],C.dark,M.paint);
+  [...'CASINO'].forEach((c,i)=>font[c].forEach((r,y)=>[...r].forEach((v,x)=>{if(v==='1')g.box([-.338+i*.118+x*.027,.754-y*.023,.710],[.022,.018,.012],C.brass,M.lamp);}))); 
   for(const x of [-.60,.60]){
     g.box([x,.37,.395],[.028,.19,.028],C.brass,M.metal);
     g.box([x,.47,.405],[.055,.072,.055],C.warm,M.lamp,.006);

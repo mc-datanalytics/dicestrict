@@ -1,3 +1,4 @@
+import {createPublicAsset,PUBLIC_FACTORIES} from '../finish/public.js';
 import { createHarmonyAsset, HARMONY_FAMILIES } from '../harmony/kit.js';
 import { createCivicAsset, CIVIC_FACTORIES } from '../civic/kit.js';
 /** Isolated asset inspection with the SAME Renderer and geometry factories as the game. */
@@ -11,6 +12,7 @@ for(const family of FAMILIES)for(const level of [-1,0,1,2,3])for(const variant o
 for(const name of ['linden','bench','cafe-table','heritage-lamp','office-lamp','container','delivery-truck','gantry'])choices.set(name,lod=>createDistrictProp(name,lod));
 for(const name of Object.keys(FACTORIES))choices.set(name,lod=>createAsset(name,lod));
 for(const name of Object.keys(CIVIC_FACTORIES))choices.set(name,lod=>createCivicAsset(name,lod));
+for(const name of Object.keys(PUBLIC_FACTORIES))choices.set(name,lod=>createPublicAsset(name,lod));
 const canvas=document.querySelector('canvas'),atlas=document.createElement('canvas');atlas.width=atlas.height=2;
 const ctx=atlas.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,2,2);
 const renderer=new Renderer(canvas,atlas);renderer.studio=true;renderer.shadows=false;

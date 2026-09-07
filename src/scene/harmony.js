@@ -3,9 +3,9 @@ import {MeshBuilder,rgb} from './marina/mesh-builder.js';
 import {MATERIALS as M} from './marina/surfaces.js';
 import {createHarmonyAsset} from './harmony/kit.js';
 import {model} from './math.js';
-const HARMONY_SPEC=Object.freeze({22:['roseraie',0],23:['roseraie',1]});
+const HARMONY_SPEC=Object.freeze({4:['jardins',0],5:['jardins',1],18:['nova',0],19:['nova',1],22:['roseraie',0],23:['roseraie',1],25:['solstice',0],26:['solstice',1]});
 const HARMONY_LOTS=Object.freeze(Object.keys(HARMONY_SPEC).map(Number));
-const HARMONY_CACHE_LIMIT=16;
+const HARMONY_CACHE_LIMIT=24;
 function pennant(){const g=new MeshBuilder();g.rod([0,0,0],[0,.25,0],.008,'#7b8e80',M.metal,5);g.box([.044,.206,0],[.090,.069,.012],'#ffffff',M.canvas);return g.build('neighbourhood-owner-pennant');}
 class Harmony {
  constructor(renderer){this.renderer=renderer;this.detail='low';this.quality='high';this.cache=new Map();this.entries=[];this.builds=0;this.clock=0;this.flag=renderer.mesh(pennant());}
