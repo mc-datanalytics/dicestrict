@@ -187,7 +187,7 @@ async def main():
             checks.append('Counter-offer UI reverses the bundles and commits only the accepted revised terms')
             await host.locator('[data-deal-ui="close"]').click();await guest.locator('[data-deal-ui="close"]').click()
             # Match-credit-only casino over a real DataChannel, not a mocked transport.
-            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame}=await import('/src/game/engine.js');const s=createGame(app.state.players,73,{id:app.state.id,casino:true,mobility:2});s.revision=app.state.revision+1;s.round=3;app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
+            await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame}=await import('/src/game/engine.js');const s=createGame(app.state.players,73,{id:app.state.id,casino:true});s.revision=app.state.revision+1;s.round=3;app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
             await equal_states(host,guest)
             before=json.loads(await state(host))
             await guest.locator('[data-ui="casino"]').click()
