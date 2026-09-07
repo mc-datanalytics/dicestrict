@@ -20,7 +20,7 @@ async def equal_states(host, guest):
 
 async def trade_fixture(host, guest):
     # Controlled fixtures use a forward revision, never a stale rollback.
-    await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame,assertState}=await import('/src/game/engine.js');clearTimeout(app.botTimer);clearTimeout(app.busyTimer);app.settings.reduced=true;const s=createGame(app.state.players,42,{id:app.state.id,rounds:6,mobility:2,finishOnBankruptcy:true});s.revision=app.state.revision+1;s.round=3;s.properties[1].owner=s.players[0].id;s.properties[5].owner=s.players[0].id;s.properties[2].owner=s.players[1].id;s.properties[4].owner=s.players[1].id;assertState(s);app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
+    await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame,assertState}=await import('/src/game/engine.js');clearTimeout(app.botTimer);clearTimeout(app.busyTimer);app.settings.reduced=true;const s=createGame(app.state.players,119,{id:app.state.id,rounds:6,finishOnBankruptcy:true});s.revision=app.state.revision+1;s.round=3;s.properties[1].owner=s.players[0].id;s.properties[5].owner=s.players[0].id;s.properties[2].owner=s.players[1].id;s.properties[4].owner=s.players[1].id;assertState(s);app.session.state=s;app.session.broadcast('snapshot',{state:s});app.accept(s);}""")
     await equal_states(host,guest)
 
 async def main():
@@ -45,7 +45,17 @@ async def main():
                     await route.fulfill(body=text,content_type='text/javascript')
                 await ctx.route('**/config.js',config_route)
             host=await host_ctx.new_page();host.on('pageerror',lambda e: errors.append(str(e)))
+            legacy_text=(ROOT/'tests/fixtures/legacy-choice-v5.json').read_text()
+            await host_ctx.add_init_script("if(localStorage.getItem('dicestrict:casual:v5')===null)localStorage.setItem('dicestrict:casual:v5',"+json.dumps(legacy_text)+");")
             await setup(host)
+            assert await host.evaluate("localStorage.getItem('dicestrict:casual:v5')")==legacy_text
+            current=json.loads(await state(host));assert current['version']==6 and current['phase']=='roll'
+            assert 'mobility' not in current and all('mobilityTokens' not in p for p in current['players'])
+            await host.locator('[data-ui="help"]').first.click()
+            assert 'Mobilité' not in await host.locator('#modal-body').inner_text()
+            assert 'automatiquement' in await host.locator('#modal-body').inner_text()
+            await host.locator('[data-ui="resume"]').click()
+            checks.append('Pending v5 save is preserved byte-for-byte, a v6 game starts and help describes automatic movement')
             await host.screenshot(path=str(OUT/'desktop.png'),full_page=True)
             # Read-only visual fixtures: compare empty/developed city and day/night renderings.
             await host.evaluate("""async()=>{const {app}=await import('/src/main.js');const {createGame}=await import('/src/game/engine.js');const {BOARD}=await import('/src/game/board.js');const s=createGame([{id:'you',name:'Vous'},{id:'friend',name:'Ami'}],42,{id:'visual-city',casino:true});s.players.forEach(p=>p.cash=5000);for(const t of BOARD)if(t.kind==='lot'){s.properties[t.id].owner=s.players[t.group%2].id;s.properties[t.id].level=t.group%4;}app.settings.reduced=false;app.scene.configure({reduced:false,living:true,quality:'high',dayMode:'day'});app.accept(s);}""")
@@ -94,16 +104,17 @@ async def main():
             await host.locator('[name="match-preset"][value="blitz"]').check()
             await host.locator('[data-ui="confirm-new"]').click()
             ss=json.loads(await state(host))
-            assert ss['maxRounds']==6 and ss['finishOnBankruptcy'] and all(p['mobilityTokens']==2 for p in ss['players'])
+            assert ss['maxRounds']==6 and ss['finishOnBankruptcy'] and 'mobility' not in ss
+            assert all('mobilityTokens' not in p for p in ss['players'])
             await host.locator('[data-game="ROLL"]').click()
-            await host.locator('[data-game="MOVE"][data-offset="-1"]').wait_for()
-            await host.screenshot(path=str(OUT/'feedback-mobility.png'),full_page=True)
-            assert json.loads(await state(host))['players'][0]['position']==0
-            await host.locator('[data-game="MOVE"][data-offset="-1"]').click()
-            assert json.loads(await state(host))['players'][0]['mobilityTokens']==1
+            await host.wait_for_function("async()=>!(await import('/src/main.js')).app.busy")
+            ss=json.loads(await state(host))
+            assert ss['players'][0]['position']==sum(ss['dice']) and ss['phase']!='choose'
+            assert await host.locator('[data-game="MOVE"]').count()==0
+            await host.screenshot(path=str(OUT/'automatic-movement.png'),full_page=True)
             await host.reload();await host.wait_for_function("!document.querySelector('.scene-loading')")
-            assert json.loads(await state(host))['players'][0]['mobilityTokens']==1
-            checks.append('Blitz preset and an explicit post-roll mobility choice persist after reload')
+            assert json.loads(await state(host))==ss
+            checks.append('Blitz resolves movement and landing on ROLL alone, with exact save/reload and no route controls')
             await host.locator('[data-ui="help"]').first.click();assert await host.locator('#modal').evaluate('(el)=>el.open')
             await host.locator('[data-ui="resume"]').click()
             # A room starts with two actual peers; the host fills the remaining seats with bots.
@@ -129,8 +140,8 @@ async def main():
             assert await state(host)==await state(guest)
             checks.append('Two isolated browser contexts connect via WebRTC and agree after rolling')
             await host.screenshot(path=str(OUT/'multiplayer.png'),full_page=True)
-            ss=json.loads(await state(host));assert ss['mobility']==2 and ss['finishOnBankruptcy'] and ss['maxRounds']==6
-            await host.locator('[data-game="MOVE"][data-offset="0"]').click()
+            ss=json.loads(await state(host));assert 'mobility' not in ss and ss['finishOnBankruptcy'] and ss['maxRounds']==6
+            assert await host.locator('[data-game="MOVE"]').count()==0
             await equal_states(host,guest)
             checks.append('Host-selected rules are visible to the guest and locked into the synchronized match')
             await trade_fixture(host,guest)
@@ -141,7 +152,8 @@ async def main():
             await host.locator('[data-game="ROLL"]').click();await equal_states(host,guest)
             assert await guest.locator('#give-cash').input_value()=='37'
             assert await guest.locator('#deal-form [type="submit"]').is_disabled()
-            await host.locator('[data-game="MOVE"][data-offset="0"]').click();await equal_states(host,guest)
+            assert json.loads(await state(host))['phase']=='buy'
+            await equal_states(host,guest)
             await guest.locator('[data-deal-ui="close"]').click()
             checks.append('Negotiation drawer does not pause the table or discard the draft on peer updates')
             await trade_fixture(host,guest)
@@ -217,14 +229,15 @@ async def main():
             assert 'Palais Solaire' in await mobile.locator('#property').inner_text()
             checks.append('390px mobile layout does not overflow and exposes every property')
             await mobile.locator('[data-game="ROLL"]').click()
-            await mobile.locator('[data-game="MOVE"][data-offset="1"]').wait_for()
+            await mobile.wait_for_function("async()=>!(await import('/src/main.js')).app.busy")
+            m=json.loads(await state(mobile));assert m['players'][0]['position']==sum(m['dice']) and m['phase']!='choose'
             assert await mobile.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
-            await mobile.locator('[data-game="MOVE"][data-offset="0"]').click()
+            assert await mobile.locator('[data-game="MOVE"]').count()==0
             await mobile.locator('[data-ui="deals"]').click()
             assert await mobile.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
             assert await mobile.locator('#deal-form').is_visible()
             await mobile.screenshot(path=str(OUT/'feedback-mobile.png'),full_page=True)
-            checks.append('390px touch viewport exposes mobility controls and a usable non-overflowing deal composer')
+            checks.append('390px touch viewport resolves a single roll automatically and exposes a usable non-overflowing deal composer')
             await mobile.locator('[data-deal-ui="close"]').click()
             await mobile.locator('[data-ui="casino"]').click()
             assert await mobile.locator('#casino-form').is_visible()
@@ -239,10 +252,11 @@ async def main():
             await offline.wait_for_function("!document.querySelector('.scene-loading')")
             assert await offline.locator('.scene-error').count()==0
             await offline.locator('[data-game="ROLL"]').click()
-            await offline.locator('[data-game="MOVE"][data-offset="0"]').click()
+            await offline.wait_for_function("document.querySelector('#activity').textContent.includes('arrive')")
+            assert await offline.locator('[data-game="MOVE"]').count()==0
             await offline.locator('[data-ui="deals"]').click()
             assert await offline.locator('#deal-form').is_visible()
-            checks.append('Generated offline HTML initializes real WebGL2 and supports mobility and negotiation UI')
+            checks.append('Generated offline HTML initializes real WebGL2 and supports automatic movement and negotiation UI')
             await offline.locator('[data-deal-ui="close"]').click()
             await offline.locator('[data-ui="casino"]').click()
             assert await offline.locator('#casino-form').is_visible()

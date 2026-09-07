@@ -27,14 +27,14 @@ test('opening: initial compensation is explicit, finite and applied once for 2â€
   assert.deepEqual(next.players.map(p=>p.cash),s.players.map(p=>p.cash));
  }
 });
-test('opening: classic default preserved; v4 snapshots and invalid variants are rejected',()=>{
- assert.equal(createGame(seats(4)).opening,'classic');assert.equal(RULES.version,5);assert.equal(PROTOCOL,5);
+test('opening: classic default preserved; v5 snapshots and invalid variants are rejected',()=>{
+ assert.equal(createGame(seats(4)).opening,'classic');assert.equal(RULES.version,6);assert.equal(PROTOCOL,6);
  for(const opening of [null,{},'arbitrary','__proto__',120]){
   if(opening===null)continue;
   assert.throws(()=>createGame(seats(2),1,{opening}));
  }
  const s=createGame(seats(2));delete s.opening;assert.throws(()=>assertState(s));
- const old=createGame(seats(2));old.version=4;assert.throws(()=>assertState(old));
+ const old=createGame(seats(2));old.version=5;assert.throws(()=>assertState(old));
 });
 test('opening: snake order reverses each round, including endpoint consecutive turns',()=>{
  let s=createGame(seats(4),1,{opening:'snake',rounds:4});const order=[];
@@ -48,7 +48,7 @@ test('opening: snake skips bankrupt seats without repeating or dropping a round'
 });
 test('opening: all finite variants terminate and replay with 2, 3 and 4 players',()=>{
  for(const opening of Object.keys(OPENINGS))for(const n of [2,3,4]){
-  const initial=createGame(seats(n),1493,{opening,rounds:6,mobility:2});const result=traceGame(initial);
+  const initial=createGame(seats(n),1493,{opening,rounds:6});const result=traceGame(initial);
   let replay=initial;for(const c of result.trace)replay=applyAction(replay,c.actor,c.action);
   assert.equal(fingerprint(replay),fingerprint(result.s));assert.ok(result.rolls.every(n=>n<=6));
  }
@@ -72,7 +72,7 @@ test('negotiation: wrong turn, low reserves, mortgages or built groups do not tr
  }
 });
 test('playtest: full traces replay, remove names/room IDs and never certify human participation',()=>{
- const initial=createGame(seats(4),119,{id:'PRIVATE-ROOM-ID',opening:'comp-60',rounds:4,mobility:2,casino:true});
+ const initial=createGame(seats(4),119,{id:'PRIVATE-ROOM-ID',opening:'comp-60',rounds:4,casino:true});
  const {recorder}=traceGame(initial,true),record=recorder.export();assert.equal(record.status,'complete');
  const text=JSON.stringify(record);assert.ok(!text.includes('Private Name'));assert.ok(!text.includes('PRIVATE-ROOM-ID'));
  const {summary}=verifyPlaytest(record);assert.equal(summary.humanParticipationVerified,false);assert.equal(summary.declaredHumanSeats,0);
@@ -94,9 +94,9 @@ test('playtest: changed hashes, commands, initial balances and false human certi
  }
 });
 test('protocol: opening is announced and required, old clients cannot join silently',()=>{
- const rules={opening:'comp-60',rounds:12,mobility:2,finishOnBankruptcy:false,casino:false};
+ const rules={opening:'comp-60',rounds:12,finishOnBankruptcy:false,casino:false};
  assert.equal(readPacket(packet('lobby-rules',{rules})).rules.opening,'comp-60');
- assert.throws(()=>readPacket(JSON.stringify({v:4,type:'lobby-rules',rules})));
+ assert.throws(()=>readPacket(JSON.stringify({v:5,type:'lobby-rules',rules})));
  delete rules.opening;assert.throws(()=>readPacket(packet('lobby-rules',{rules})));
 });
 test('lab: old configuration defaults are explicit; unknown rules fail and reciprocal games replay',()=>{

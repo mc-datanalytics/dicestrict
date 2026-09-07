@@ -12,7 +12,7 @@ class PlaytestRecorder {
     this.ids = Object.fromEntries(initial.players.map((p,i) => [p.id,`seat-${i+1}`]));
     this.gameId = initial.id; this.trace = []; this.problem = null; this.elapsed = 0;
     this.initial = createGame(initial.players.map((p,i) => ({id:`seat-${i+1}`,name:`Joueur ${i+1}`,bot:p.bot})),initial.rng,
-      {id:'playtest',rounds:initial.maxRounds,mobility:initial.mobility,finishOnBankruptcy:initial.finishOnBankruptcy,casino:initial.casino.enabled,opening:initial.opening});
+      {id:'playtest',rounds:initial.maxRounds,finishOnBankruptcy:initial.finishOnBankruptcy,casino:initial.casino.enabled,opening:initial.opening});
     this.state = this.initial;
     requireOK(this.equivalent(initial), 'État initial différent des règles annoncées.');
   }

@@ -31,8 +31,9 @@ function createGame(seats, seed = 1, options = {}) {
   demand(integer(seed, 1, 0xffffffff), 'Graine invalide.');
   const rounds = options.rounds ?? RULES.rounds;
   demand(integer(rounds, 4, 30), 'Durée invalide.');
-  const mobility = options.mobility ?? 0, finishOnBankruptcy = options.finishOnBankruptcy ?? false;
-  demand(integer(mobility, 0, 3) && typeof finishOnBankruptcy === 'boolean', 'Règles de partie invalides.');
+  demand(!Object.hasOwn(options, 'mobility'), 'Ancienne option de déplacement incompatible. Démarrez une nouvelle partie.');
+  const finishOnBankruptcy = options.finishOnBankruptcy ?? false;
+  demand(typeof finishOnBankruptcy === 'boolean', 'Règles de partie invalides.');
   const casino = options.casino ?? false; demand(typeof casino === 'boolean', 'Règle casino invalide.');
   demand(typeof (options.id ?? `local-${seed}`) === 'string' && (options.id ?? `local-${seed}`).length > 0 && (options.id ?? `local-${seed}`).length <= 100, 'Identifiant de partie invalide.');
   const opening = options.opening ?? 'classic'; demand(validOpening(opening), 'Ouverture invalide.');
@@ -40,8 +41,8 @@ function createGame(seats, seed = 1, options = {}) {
     opening, casino: createCasino(seed, casino),
     version: RULES.version, id: String(options.id ?? `local-${seed}`).slice(0, 100), rng: seed >>> 0,
     revision: 0, turn: 0, round: 1, maxRounds: rounds, phase: 'roll',
-    mobility, finishOnBankruptcy, turnSerial: 0, deals: [], nextDealId: 1, endReason: null,
-    players: seats.map((p, seat) => ({ id: p.id, name: cleanName(p.name), bot: Boolean(p.bot), cash: RULES.startCash + openingBonus(opening, seat), position: 0, bankrupt: false, mobilityTokens: mobility, dealBudgetTurn: -1, dealsSent: 0 })),
+    finishOnBankruptcy, turnSerial: 0, deals: [], nextDealId: 1, endReason: null,
+    players: seats.map((p, seat) => ({ id: p.id, name: cleanName(p.name), bot: Boolean(p.bot), cash: RULES.startCash + openingBonus(opening, seat), position: 0, bankrupt: false, dealBudgetTurn: -1, dealsSent: 0 })),
     properties: BOARD.map(() => ({ owner: null, level: 0, mortgaged: false })),
     dice: [1, 1], event: null, pending: null, auction: null, log: [{ text: 'Aurora vous ouvre ses portes. À vous de bâtir la suite.', kind: 'info' }], winners: [],
   };
@@ -115,8 +116,8 @@ function advanceAuction(s) {
   do { i = (i + 1) % s.players.length; } while (!eligible.some(e => e.i === i));
   a.bidder = i;
 }
-function resolveLanding(s, p, offset) {
-    const steps = s.dice[0] + s.dice[1] + offset, raw = p.position + steps;
+function resolveLanding(s, p) {
+    const steps = s.dice[0] + s.dice[1], raw = p.position + steps;
     if (raw >= BOARD.length) { p.cash += RULES.lapIncome; log(s, `${p.name} passe le départ : +${RULES.lapIncome}.`, 'income'); }
     p.position = raw % BOARD.length; s.pending = p.position; s.phase = 'end'; s.event = null;
     const tile = BOARD[p.position], prop = s.properties[p.position];
@@ -140,7 +141,6 @@ function validateAction(a) {
   demand(a && typeof a === 'object' && !Array.isArray(a), 'Action invalide.');
   if (DEAL_TYPES.includes(a.type)) return validateDealAction(a);
   if (a.type === 'CASINO_BET') return validateCasinoAction(a);
-  if (a.type === 'MOVE') { demand(Object.keys(a).every(k => ['type', 'offset'].includes(k)) && integer(a.offset, -1, 1), 'Déplacement invalide.'); return a; }
   demand(['ROLL','BUY','SKIP','END','UPGRADE','SELL_LEVEL','MORTGAGE','REDEEM','BID','PASS'].includes(a.type), 'Action inconnue.');
   demand(Object.keys(a).every(k => ['type', 'tile'].includes(k)), 'Champs non autorisés.');
   if (['UPGRADE','SELL_LEVEL','MORTGAGE','REDEEM'].includes(a.type)) demand(integer(a.tile,0,BOARD.length-1) && BOARD[a.tile].kind === 'lot', 'Terrain invalide.');
@@ -171,13 +171,7 @@ function applyAction(state, actorId, action) {
     demand(s.phase === 'roll', 'Les dés ont déjà été lancés.');
     s.dice = [1 + nextRandom(s, 6), 1 + nextRandom(s, 6)];
     log(s, `${p.name} lance ${s.dice.join(' + ')}.`, 'move');
-    if (p.mobilityTokens > 0) { s.phase = 'choose'; s.pending = null; s.event = null; }
-    else resolveLanding(s, p, 0);
-  } else if (a.type === 'MOVE') {
-    demand(s.phase === 'choose', 'Lancez les dés avant de choisir votre déplacement.');
-    demand(a.offset === 0 || p.mobilityTokens > 0, 'Aucun jeton Mobilité disponible.');
-    if (a.offset !== 0) { p.mobilityTokens--; log(s, `${p.name} utilise un jeton Mobilité (${a.offset > 0 ? '+' : ''}${a.offset} case).`); }
-    resolveLanding(s, p, a.offset);
+    resolveLanding(s, p);
   } else if (a.type === 'BUY') {
     demand(s.phase === 'buy' && s.pending === p.position, 'Aucun terrain à acheter.');
     const tile = BOARD[p.position], prop = s.properties[p.position];
@@ -234,7 +228,7 @@ function assertState(s) {
     demand(integer(p.cash,0,10000000) && integer(p.position,0,27) && typeof p.bot === 'boolean' && typeof p.bankrupt === 'boolean', 'Joueur invalide.');
   }
   demand(integer(s.turn,0,s.players.length-1) && integer(s.round,1,30) && integer(s.maxRounds,4,30) && s.round <= s.maxRounds, 'Tour invalide.');
-  demand(['roll','choose','buy','auction','end','finished'].includes(s.phase), 'Phase invalide.');
+  demand(['roll','buy','auction','end','finished'].includes(s.phase), 'Phase invalide.');
   demand(s.phase === 'auction' || s.auction === null, 'Enchère hors phase.');
   if (s.phase === 'auction') {
     const a = s.auction;
@@ -262,11 +256,10 @@ function assertState(s) {
   demand(Array.isArray(s.winners) && s.winners.length <= 4 && new Set(s.winners).size === s.winners.length && s.winners.every(x => ids.has(x) && !s.players.find(p => p.id === x).bankrupt), 'Résultat invalide.');
   demand(s.phase === 'finished' ? s.winners.length > 0 : s.winners.length === 0, 'Résultat hors phase.');
   if (s.phase === 'buy') demand(s.pending === currentPlayer(s).position && BOARD[s.pending].kind === 'lot' && s.properties[s.pending].owner === null, 'Achat incohérent.');
-  demand(integer(s.mobility,0,3) && typeof s.finishOnBankruptcy === 'boolean', 'Règles invalides.');
-  demand(s.players.every(p => integer(p.mobilityTokens,0,s.mobility)), 'Jetons Mobilité invalides.');
+  demand(!Object.hasOwn(s, 'mobility') && s.players.every(p => !Object.hasOwn(p, 'mobilityTokens')), 'Ancien état de déplacement incompatible.');
+  demand(typeof s.finishOnBankruptcy === 'boolean', 'Règles invalides.');
   demand(s.endReason === null || ['first-bankruptcy','round-cap','last-solvent'].includes(s.endReason), 'Motif de fin invalide.');
   demand(s.phase === 'finished' ? s.endReason !== null : s.endReason === null, 'Motif de fin hors phase.');
-  if (s.phase === 'choose') demand(s.pending === null && currentPlayer(s).mobilityTokens > 0, 'Choix de déplacement invalide.');
   assertDeals(s);
   assertCasino(s);
   return s;

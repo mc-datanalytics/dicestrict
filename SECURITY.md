@@ -14,7 +14,7 @@ Une vulnérabilité contenant un secret ne doit pas être publiée dans une issu
 
 Les négociations sont visibles par tous les pairs : ne pas les présenter comme secrètes. Elles ne réservent pas les fonds. Une réponse concurrente sur une ancienne révision est revalidée contre l'offre et l'état actuels ; l'identité et l'identifiant de partie restent obligatoires. Les identifiants d'offres ne sont pas réutilisés dans une même partie.
 
-Les restrictions sur les cadeaux, hypothèques et constructions ne constituent pas une défense suffisante contre la collusion ou les échanges économiquement absurdes. Blitz peut être influencé par une faillite volontaire. Aucun classement ni gain persistant n'est associé à ces formats. Les jetons Mobilité sont des ressources gratuites de partie, sans achat.
+Les restrictions sur les cadeaux, hypothèques et constructions ne constituent pas une défense suffisante contre la collusion ou les échanges économiquement absurdes. Blitz peut être influencé par une faillite volontaire. Aucun classement ni gain persistant n'est associé à ces formats.
 
 ## Casino amical (0.4)
 
@@ -22,6 +22,6 @@ Le casino ne manipule que le capital fictif de la partie, sans achat, conversion
 
 ## Ouverture et traces locales (0.6)
 
-La compensation de siège est un paramètre versionné et annoncé, en crédits de partie. Aucun droit à des récompenses persistantes. Les messages v4 ne sont pas acceptés par v5.
+La compensation de siège est un paramètre versionné et annoncé, en crédits de partie. Aucun droit à des récompenses persistantes. Les messages v5 ne sont pas acceptés par v6. Les anciens champs de déplacement, snapshots et commandes MOVE sont refusés, pas convertis silencieusement.
 
 L'enregistrement d'essai est volontaire, désactivé par défaut, en mémoire et sans envoi automatique. L'export retire les identifiants/noms/code de salon, mais il reste un fichier à partager avec l'accord des participants. Le vérificateur rejoue les commandes et refuse les incohérences ; un fichier fabriqué légalement peut cependant passer. `humanParticipationVerified: false` est obligatoire : aucune trace ne prouve une participation humaine ni l'honnêteté de l'hôte et ne doit créditer XP/monnaie/classement.

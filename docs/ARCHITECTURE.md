@@ -1,10 +1,10 @@
-# Architecture 0.6
+# Architecture 0.6.2
 
 ## Réducteur et versions
 
-Les modules natifs ESM du navigateur et du lab Node partagent `src/game/engine.js`. `createGame` crée l'état ; `applyAction` clone, valide l'identité et les paramètres, applique la commande, incrémente la révision et vérifie les invariants. Aucun temps mural ni accès réseau dans les règles. Règles/snapshots/protocole **v5**, lab **v2**, politiques **v3**. Pas d'import silencieux des anciennes parties v4 ; leurs clés de sauvegarde ne sont pas supprimées.
+Les modules natifs ESM du navigateur et du lab Node partagent `src/game/engine.js`. `createGame` crée l'état ; `applyAction` clone, valide l'identité et les paramètres, applique la commande, incrémente la révision et vérifie les invariants. Aucun temps mural ni accès réseau dans les règles. Règles/snapshots/protocole **v6**, lab **v3**, politiques **v4**. Pas d'import silencieux des anciennes parties v5 ; leurs clés de sauvegarde ne sont pas supprimées.
 
-`board.js` définit le plateau et les montants, `presets.js` les formats, `deals.js` les transactions, `casino.js` le casino uniquement en crédits de partie. Les commandes sont ROLL, BUY, SKIP, END, UPGRADE, SELL_LEVEL, MORTGAGE, REDEEM, BID, PASS, MOVE, OFFER_DEAL, ACCEPT_DEAL, DECLINE_DEAL, CANCEL_DEAL et CASINO_BET. `currentPlayer` retourne l'enchérisseur durant une enchère, sans modifier le propriétaire du tour normal.
+`board.js` définit le plateau et les montants, `presets.js` les formats, `deals.js` les transactions, `casino.js` le casino uniquement en crédits de partie. Les commandes sont ROLL, BUY, SKIP, END, UPGRADE, SELL_LEVEL, MORTGAGE, REDEEM, BID, PASS, OFFER_DEAL, ACCEPT_DEAL, DECLINE_DEAL, CANCEL_DEAL et CASINO_BET. `currentPlayer` retourne l'enchérisseur durant une enchère, sans modifier le propriétaire du tour normal.
 
 ## Ouverture et négociation
 

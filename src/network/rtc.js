@@ -6,7 +6,7 @@ import { readPacket, packet, createLimiter } from "./protocol.js";
 /** Host-authoritative CASUAL rooms. WebRTC data channels carry play, never reward proofs. */
 class RoomSession {
   constructor({onLobby,onState,onError,onClosed}){
-    Object.assign(this,{onLobby,onState,onError,onClosed});this.peers=new Map();this.room=null;this.state=null;this.closed=false;this.paused=false;this.ready=new Set();this.rules={opening:'classic',rounds:12,mobility:2,finishOnBankruptcy:false,casino:true};
+    Object.assign(this,{onLobby,onState,onError,onClosed});this.peers=new Map();this.room=null;this.state=null;this.closed=false;this.paused=false;this.ready=new Set();this.rules={opening:'classic',rounds:12,finishOnBankruptcy:false,casino:true};
   }
   async connect(kind,name,code=''){
     if(!globalThis.RTCPeerConnection)throw Error('Ce navigateur ne prend pas en charge WebRTC.');

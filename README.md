@@ -2,7 +2,7 @@
 
 **Roll. Build. Rule.** Une ville miniature, quatre ambitions, un lancer à la fois.
 
-Jeu original de stratégie immobilière en 3D pour navigateur. Ville **Aurora**, interface française crème / vert profond / quartiers pastel. **Alpha 0.6.1**, pas une sortie commerciale. Aucun déploiement CrazyGames ou système de récompenses permanentes.
+Jeu original de stratégie immobilière en 3D pour navigateur. Ville **Aurora**, interface française crème / vert profond / quartiers pastel. **Alpha 0.6.2**, pas une sortie commerciale. Aucun déploiement CrazyGames ou système de récompenses permanentes.
 
 ## Jouer et ouvrir le lab
 
@@ -26,6 +26,14 @@ npm run preview
 
 Les deux HTML autonomes s'ouvrent directement dans un navigateur de bureau. Le lab inclut son Worker et ne touche pas aux sauvegardes du jeu. Le jeu autonome permet le mode local ; le multijoueur nécessite une signalisation. Le lab est exclu du build ordinaire et de CrazyGames.
 
+## 0.6.2 : un lancer, un déplacement
+
+**Mobilité est supprimée, pas masquée ni déplacée dans les réglages.** Le total des deux dés déplace le pion et résout immédiatement l’arrivée. Achats, enchères, loyers et négociations restent les décisions du joueur. Aucune deuxième confirmation, aucun jeton et aucune option avancée de déplacement.
+
+Le moteur refuse l’ancienne commande `MOVE` et la phase `choose`. Le lab n’offre plus cette règle. Les sauvegardes v5 restent intactes sous leur ancienne clé ; la v6 commence une nouvelle partie et le signale. [Changements, migration et nouveau diagnostic](docs/AUTOMATIC_MOVEMENT.md).
+
+Les résultats d’équilibrage ci-dessous décrivent l’ancienne version avec Mobilité : ils ne valident pas automatiquement les nouvelles règles. Un nouveau diagnostic de 4 000 trajectoires est disponible, sans modifier les crédits ou l’ouverture classique par défaut.
+
 ## 0.6.1 : correctifs de fiabilité
 
 Exports d’essais limités à la partie enregistrée, résultats conservés après resynchronisation, envois réseau en file bornée plutôt qu’abandonnés en cas de congestion, handshake relancé, suspension propagée aux autres pairs et snapshots anciens refusés. **118 tests Node**, dont 21 nouveaux contrôles ciblés. Les montants, dés et options de départ ne changent pas. [Détails de l’audit](docs/BUGFIX_AUDIT_0_6_1.md) et [preuve de validation](docs/VALIDATION.md).
@@ -43,14 +51,14 @@ Les bots peuvent maintenant **proposer des échanges réciproques** complétant 
 **Essais locaux enregistrés sur consentement** : activer l'enregistrement de la prochaine partie depuis le salon/réglages, puis exporter sa trace pseudonymisée. Aucun envoi automatique. Importer la trace dans le lab pour la rejouer, sans la mélanger aux statistiques simulées. La trace ne certifie pas la présence d'humains ou l'honnêteté de l'hôte. [Protocole de pilote humain](docs/HUMAN_PLAYTESTS.md) — **aucun essai humain recueilli dans cette livraison**.
 
 ```sh
-npm run balance:opening -- development lab-results/fair-opening
-npm run balance:opening -- confirmation lab-results/fair-opening
+npm run balance:automatic
+# Les anciennes campagnes 0.6 se reproduisent sur leur révision archivée.
 npm run playtest:verify -- chemin/trace.json
 ```
 
 ## Le jeu et le laboratoire
 
-Plateau original de 28 cases / 16 terrains / 8 quartiers. Achats, loyers, constructions équilibrées, hypothèques, enchères, faillites et score au patrimoine ; négociation publique non modale, contre-offres et échanges atomiques ; deux jetons Mobilité gratuits pour ±1 case. Formats Blitz 6 / Standard 12 / Grand District 18 manches. Le moteur et le lab supportent 2–4 joueurs ; l'interface de partie remplit quatre places, avec des bots si nécessaire.
+Plateau original de 28 cases / 16 terrains / 8 quartiers. Achats, loyers, constructions équilibrées, hypothèques, enchères, faillites et score au patrimoine ; négociation publique non modale, contre-offres et échanges atomiques ; déplacement automatique du total des dés, sans choix intermédiaire. Formats Blitz 6 / Standard 12 / Grand District 18 manches. Le moteur et le lab supportent 2–4 joueurs ; l'interface de partie remplit quatre places, avec des bots si nécessaire.
 
 La ville procédurale WebGL2 reflète propriétaires, constructions et hypothèques : commerces, terrasses, circulation, bus, piétons, grues, éclairage jour/nuit et événements visuels. Réglages qualité, mouvements réduits, ville figée et météo. [Spécification de la ville](docs/LIVING_CITY.md).
 
@@ -60,7 +68,7 @@ Le [Balance Lab](docs/BALANCE_LAB.md) exécute le vrai moteur : comparaisons A/B
 
 ## Migration et validation
 
-**Règles, réseau et sauvegardes passent en v5**, lab v2 / politiques v3. Pas de compatibilité silencieuse avec v4. Les anciennes sauvegardes restent sous leur ancienne clé ; elles ne sont ni supprimées ni importées. Les configurations historiques du lab reçoivent explicitement les valeurs `opening: classic` et `negotiation: none` ; les anciens replays de moteur restent incompatibles.
+**Règles, réseau et sauvegardes : v6**, lab v3 / politiques v4. Pas de compatibilité silencieuse avec v5. Les anciennes sauvegardes restent sous leur ancienne clé ; elles ne sont ni supprimées ni importées. Les configurations contenant `mobility` sont refusées explicitement, même avec zéro jeton. Les anciens replays et traces v5 restent attachés à leur ancienne version.
 
 Consulter [VALIDATION.md](docs/VALIDATION.md) pour les résultats exécutés, les révisions et les limites, pas seulement le nombre de tests. Les artefacts GitHub Actions peuvent exister après un échec : vérifier aussi la conclusion et les rapports.
 

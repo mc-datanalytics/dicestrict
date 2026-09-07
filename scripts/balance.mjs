@@ -7,7 +7,7 @@ import { sourceMeta } from './source-meta.mjs';
 async function main(){
   const args=process.argv.slice(2),flags={};
   for(let i=0;i<args.length;i++){
-    const key=args[i];if(key==='--help'){console.log('npm run balance -- [--experiment casino|mobility|formats|seats] [--config file.json] [--samples 1..2000] [--seed 1..4294967295] [--out lab-results/name] [--replay-out replay.json]\nVerification: npm run balance -- --verify-replay replay.json');return;}
+    const key=args[i];if(key==='--help'){console.log('npm run balance -- [--experiment casino|formats|seats|opening] [--config file.json] [--samples 1..2000] [--seed 1..4294967295] [--out lab-results/name] [--replay-out replay.json]\nVerification: npm run balance -- --verify-replay replay.json');return;}
     if(!['--experiment','--config','--samples','--seed','--out','--replay-out','--verify-replay'].includes(key)||flags[key]||!args[i+1]||args[i+1].startsWith('--'))throw Error(`Argument invalide : ${key}`);
     flags[key]=args[++i];
   }
@@ -18,9 +18,9 @@ async function main(){
   }
   if(flags['--config']&&flags['--experiment'])throw Error('Choisir --config ou --experiment, pas les deux.');
   const c=flags['--config']?await jsonFile(flags['--config']):structuredClone(DEFAULT_CONFIG),name=flags['--experiment']??'casino';
-  if(!['casino','mobility','formats','seats'].includes(name))throw Error('Expérience inconnue.');
+  if(!['casino','formats','seats','opening'].includes(name))throw Error('Expérience inconnue.');
   if(!flags['--config']){
-    if(name==='mobility'){c.baseline.mobility=0;c.candidate={...c.baseline,mobility:2};}
+    if(name==='opening'){c.baseline.casino=false;c.baseline.casinoPolicy='none';c.candidate={...c.baseline,opening:'comp-60'};}
     if(name==='formats')c.candidate={...c.baseline,rounds:18};
     if(name==='seats'){c.lineup=Array(4).fill('balanced');c.rotateSeats=false;c.candidate={...c.baseline};}
   }

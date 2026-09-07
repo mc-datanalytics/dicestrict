@@ -89,7 +89,6 @@ async def main(openings):
                         await p.locator(f'[data-game="{kind}"][data-lot="{a["tile"]}"]').click()
                     else:
                         selector=f'[data-game="{kind}"]'
-                        if kind=='MOVE':selector+=f'[data-offset="{a["offset"]}"]'
                         await p.locator(selector).click()
                     state=await converge(pages,state['revision']+1)
                     if state['revision'] % 10 == 0:

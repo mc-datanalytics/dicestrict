@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { DEFAULT_CONFIG, validateConfig, runGame, runExperiment, makeReplay } from '../src/lab/core.js';
 import { mean, estimate, quantile, seedAt, randomSequence } from '../src/lab/statistics.js';
 import { sourceMeta } from './source-meta.mjs';
+import { RULES } from '../src/game/board.js';
+if (RULES.version !== 5) throw Error('Étude historique v5 avec Mobilité. Reproduisez-la au commit b5f547c97ce8387f1c31b25bef3a29952d0a94a7. Pour les nouvelles règles : npm run balance:automatic.');
 const args=process.argv.slice(2),stage=args[0],out=resolve(args[1]??'lab-results/fair-opening');
 if(!['development','confirmation'].includes(stage)||args.length>2)throw Error('Usage: node scripts/fair-opening.mjs development|confirmation [output-directory]');
 await mkdir(out,{recursive:true});

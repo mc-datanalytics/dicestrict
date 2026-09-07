@@ -2,11 +2,13 @@
 
 **Statut au moment de la livraison : aucun essai humain recueilli.** Les captures et traces des tests `playtest_browser.py` ont des commandes automatisées. Elles vérifient le logiciel, pas les sensations de personnes.
 
+Les sessions avec les anciennes règles v5 ne doivent pas être mélangées aux nouvelles sessions v6. Les fichiers historiques restent archivés ; le protocole ci-dessous concerne désormais des déplacements automatiques.
+
 ## Objectif du pilote
 
 Comparer le sentiment d'équité, la compréhension du bonus, les acquisitions et les négociations sous deux règles : A **Classique**, B **compensation de 60 crédits par rang**. Ne pas présenter B comme « équilibré » ou « meilleur » aux participants. Les deux versions gardent les mêmes loyers, prix, revenus de passage et règles de négociation.
 
-Quatre personnes, aucun bot, format **Standard 12 manches**, deux jetons Mobilité, casino désactivé. Capital A : 1 800 chacun. Capital B : 1 800 / 1 860 / 1 920 / 1 980 dans l'ordre de départ. Le bonus reste dans le patrimoine servant au score. Il n'est pas achetable et disparaît avec la partie.
+Quatre personnes, aucun bot, format **Standard 12 manches**, déplacement automatique (moteur v6), casino désactivé. Capital A : 1 800 chacun. Capital B : 1 800 / 1 860 / 1 920 / 1 980 dans l'ordre de départ. Le bonus reste dans le patrimoine servant au score. Il n'est pas achetable et disparaît avec la partie.
 
 Un groupe de quatre sur huit sessions est un **pilote d'utilisabilité**, pas un effectif statistiquement garanti. Pour étudier l'équité entre joueurs, prévoir plusieurs groupes indépendants et une taille d'échantillon décidée à partir de la variabilité du pilote, avant d'observer la campagne de confirmation. Ne pas traiter les quatre personnes d'une table ou les sessions répétées comme indépendantes.
 
