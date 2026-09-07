@@ -1,7 +1,7 @@
 """Two full four-peer games. Seeded AUTOMATED UI input, NOT human playtests.
 No ownership/balance fixtures: start empty and use legal game controls throughout.
 """
-import asyncio, json, os, pathlib, subprocess, time, traceback
+import argparse, asyncio, json, os, pathlib, subprocess, time, traceback
 from playwright.async_api import async_playwright
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 OUT=ROOT/'test-results';OUT.mkdir(exist_ok=True)
@@ -15,7 +15,7 @@ async def converge(pages, revision=None):
         if len(set(states))==1 and (revision is None or json.loads(states[0])['revision']==revision):return json.loads(states[0])
         await asyncio.sleep(.05)
     raise AssertionError('Four-peer convergence failed')
-async def main():
+async def main(openings):
     checks=[];errors=[];browser=None;pages=[];state=None;decision=None;lobby=None
     server=subprocess.Popen(['node','scripts/dev.mjs','--port','4400'],cwd=ROOT,stdout=subprocess.DEVNULL)
     try:
@@ -27,7 +27,8 @@ async def main():
             opts={'headless':True,'args':['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']}
             if os.getenv('CHROMIUM_PATH'):opts['executable_path']=os.environ['CHROMIUM_PATH']
             browser=await pw.chromium.launch(**opts)
-            for opening in ['classic','comp-60']:
+            for opening in openings:
+                print(f'START opening={opening}',flush=True)
                 contexts=[];pages=[]
                 for i in range(4):
                     ctx=await browser.new_context(viewport={'width':1360,'height':1000},accept_downloads=True);contexts.append(ctx)
@@ -91,6 +92,8 @@ async def main():
                         if kind=='MOVE':selector+=f'[data-offset="{a["offset"]}"]'
                         await p.locator(selector).click()
                     state=await converge(pages,state['revision']+1)
+                    if state['revision'] % 10 == 0:
+                        print(f'PROGRESS opening={opening} revision={state["revision"]} round={state["round"]}',flush=True)
                     # Respect the real guest action budget, rather than disabling it.
                     await asyncio.sleep(.45)
                 assert state['phase']=='finished' and trades>0
@@ -104,19 +107,21 @@ async def main():
                 checks.append(f'{opening}: four real local WebRTC peers completed {state["revision"]} legal UI commands and {trades} negotiated trade(s); pseudonymized trace verified; AUTOMATED, not human')
                 await host.screenshot(path=str(OUT/f'finished-{opening}.png'),full_page=True)
                 for ctx in contexts:await ctx.close()
+                print(f'COMPLETE opening={opening} commands={state["revision"]} trace={record.name}',flush=True)
             # Imported local traces stay separate from A/B statistics in the lab.
             ctx=await browser.new_context(viewport={'width':1360,'height':1000});p=await ctx.new_page();p.on('pageerror',lambda e:errors.append(str(e)))
-            await p.goto(URL+'/lab.html');await p.locator('#import-playtest').set_input_files(str(OUT/'automated-four-peer-comp-60.json'))
+            await p.goto(URL+'/lab.html');await p.locator('#import-playtest').set_input_files(str(record))
             await p.wait_for_function("document.querySelector('#status').textContent.includes('humaine NON certifiée')")
             assert await p.locator('#export-json').is_disabled()
             maximum=await p.locator('#replay-step').get_attribute('max')
             await p.locator('#replay-step').fill(maximum)
-            expected=json.loads((OUT/'automated-four-peer-comp-60.json').read_text())['finalChecksum']
+            expected=json.loads(record.read_text())['finalChecksum']
             assert await p.locator('#replay-position').get_attribute('data-checksum')==expected
             checks.append('A full local-session trace imports into the lab, replays to its checksum, and is never mixed into simulated A/B statistics')
             await p.screenshot(path=str(OUT/'imported-playtest.png'),full_page=True)
+            assert len(checks)==len(openings)+1, checks
             assert not errors,errors
-            (OUT/'playtest-report.json').write_text(json.dumps({'passed':checks,'pageErrors':errors,'humanParticipants':0,'input':'automated seeded policies'},indent=2))
+            (OUT/'playtest-report.json').write_text(json.dumps({'passed':checks,'pageErrors':errors,'humanParticipants':0,'input':'automated seeded policies','openings':openings},indent=2))
             print(json.dumps({'passed':checks,'humanParticipants':0},indent=2));await browser.close()
     except Exception:
         for i,page in enumerate(pages):
@@ -124,4 +129,8 @@ async def main():
             except Exception:pass
         (OUT/'playtest-failure.json').write_text(json.dumps({'passed':checks,'pageErrors':errors,'error':traceback.format_exc(),'state':state,'decision':decision,'lobby':lobby},indent=2));raise
     finally:server.terminate();server.wait(timeout=10)
-if __name__=='__main__':asyncio.run(main())
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--opening',choices=['classic','comp-60'],help='Run one complete session plus its lab import; omission retains both original sessions.')
+    args=parser.parse_args()
+    asyncio.run(main([args.opening] if args.opening else ['classic','comp-60']))

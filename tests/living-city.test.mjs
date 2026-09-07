@@ -93,10 +93,12 @@ test('traffic routes stay finite and on roads; animation budgets are bounded',()
  assert.ok(cityBudget(city).cars<=18);assert.ok(cityBudget(city).pedestrians<=48);assert.ok(cityBudget(city,'low').pedestrians<=12);assert.equal(cityBudget(city,'high',true).cars,0);assert.equal(cityBudget(city,'high',false,false).pedestrians,0);
 });
 test('city meshes only rebuild for economy changes; bounded effects and no renderer-state leaks',()=>{
- const meshes=new Set(),renderer={mesh(g){const data=g.typed();assert.ok(data.every(Number.isFinite));const mesh={count:data.length/12};meshes.add(mesh);return mesh;},drop(m){meshes.delete(m);}};
+ const meshes=new Set(),renderer={mesh(g){const data=g.typed();assert.ok(data.every(Number.isFinite));const mesh={count:g.indices?.length??data.length/12,bytes:data.byteLength+(g.indices?.byteLength??0)};meshes.add(mesh);return mesh;},drop(m){meshes.delete(m);}};
  const city=new LivingCity(renderer),s=fresh();city.setState(s);const n=meshes.size,base=city.parcelMesh;
  city.setState({...s,revision:1});assert.equal(city.parcelMesh,base);assert.equal(meshes.size,n);
- for(let i=0;i<15;i++){s.properties[1].owner='host';s.properties[1].level=i%4;city.setState(s);assert.equal(meshes.size,n);}
+ for(let i=0;i<15;i++){s.properties[1].owner='host';s.properties[1].level=i%4;city.setState(s);assert.equal(meshes.size,n+Math.min(i+1,4));}
+ // Four authored level meshes are cached, not leaked or regenerated on a dice snapshot.
+ const builds=city.districts.builds;city.setState({...s,revision:500});assert.equal(city.districts.builds,builds);
  const before=fingerprint(s);city.objects(20,.5);assert.equal(fingerprint(s),before);assert.ok(city.cranes.length<=16);
  city.configure({reduced:true});assert.equal(city.cranes.length,0);city.objects(22,.5);assert.equal(city.stats.cars,0);
  const g=new Geometry();g.block([0,0,0],[1,1,1],'#ffffff');assert.equal(g.typed().length/12,36);

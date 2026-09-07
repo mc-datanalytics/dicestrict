@@ -1,0 +1,38 @@
+name: Phase 4 pinned integration sessions
+on:
+  push:
+    branches: [feat/city-harmony-phase4]
+    paths: [.github/workflows/phase4-reliability.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sessions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: b75d7853457e12cac6e903da6cba4f62af3de0c0
+      - uses: actions/setup-node@v6
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - run: npm run check && npm test && npm run build:lab
+      - run: pip install playwright==1.57.0 && python -m playwright install --with-deps chromium
+      - run: python tests/playtest_browser.py
+      - name: Exact tested sources
+        if: always()
+        run: |
+          mkdir -p test-results
+          git rev-parse HEAD > test-results/tested-commit.txt
+          git archive --format=tar -o source.tar HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4-integration-sessions
+          path: |
+            source.tar
+            test-results/
+            dist/
+          retention-days: 14

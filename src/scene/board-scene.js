@@ -48,7 +48,13 @@ class BoardScene {
     this.city=new LivingCity(this.renderer);this.ambientTime=0;this.lastAmbientFrame=null;this.living=true;this.dayMode='auto';this.weather=true;
     this.angle=.50;this.pitch=.85;this.zoom=1;this.time=0;this.selected=1;this.paths=[];this.lastRoll=-99999;this.state=null;this.dirty=true;
     this.abort=new AbortController();const opts={signal:this.abort.signal};
-    canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.lost=true;cancelAnimationFrame(this.raf);onError('Le contexte graphique a été interrompu. Rechargez la page pour reprendre votre partie locale.');},opts);
+    canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.lost=true;cancelAnimationFrame(this.raf);onError('Le contexte graphique est interrompu. Restauration en attente ; la partie reste accessible.');},opts);
+    canvas.addEventListener('webglcontextrestored',()=>{
+      if(this.renderer.restoreError){onError('La restauration graphique a échoué. Rechargez la page pour reprendre.');return;}
+      this.lost=false;this.lastAmbientFrame=null;this.dirty=true;
+      canvas.closest('.stage')?.querySelector('.scene-error')?.remove();
+      cancelAnimationFrame(this.raf);this.raf=requestAnimationFrame(loop);
+    },opts);
     let pointer=null;
     canvas.addEventListener('pointerdown',e=>{pointer={x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);},opts);
     canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.lastX,dy=e.clientY-pointer.lastY;if(Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>6)pointer.moved=true;
@@ -82,6 +88,8 @@ class BoardScene {
     this.city.setState(s);this.state=s;this.updateOwnership();this.dirty=true;
   }
   updateOwnership(){
+    const signature=JSON.stringify([this.selected,this.state?.players.map(p=>p.id),this.state?.properties.map(p=>[p.owner,p.level,p.mortgaged])]);
+    if(signature===this.ownerSignature)return;this.ownerSignature=signature;
     const g=new Geometry();
     if(this.state)for(const t of BOARD){const p=this.state.properties[t.id],position=tilePosition(t.id),x=position[0],z=position[1];
       if(p.owner){const idx=this.state.players.findIndex(q=>q.id===p.owner);g.box([x,.535,z+.59],[1.18,.035,.12],p.mortgaged?'#a7aaa0':COLORS[idx],.022);
@@ -96,6 +104,7 @@ class BoardScene {
     if(tile)this.onSelect(tile.id);
   }
   render(t){
+    if(this.lost||this.renderer.lost)return;
     if(document.hidden){this.lastAmbientFrame=null;return;}
     // Do not submit GPU work for an idle board; only redraw for animation or invalidation.
     const ambient=this.living&&!this.reduced;
@@ -107,13 +116,16 @@ class BoardScene {
     this.lastAmbientFrame=t;
     const cycle=this.ambientTime/240*Math.PI*2;
     this.renderer.night=this.dayMode==='night'?1:this.dayMode==='day'||this.reduced?0:Math.max(0,-Math.cos(cycle));
+    this.renderer.dusk=this.dayMode==='auto'&&!this.reduced?Math.max(0,1-Math.abs(Math.cos(cycle))/.35):0;
     this.renderer.weather=this.weather&&ambient?Math.max(0,Math.sin(this.ambientTime/39)-.82)*4:0;
     this.renderer.ambientTime=this.ambientTime;
     const rect=this.canvas.getBoundingClientRect(),aspect=rect.width/Math.max(rect.height,1);
     this.renderer.resize(rect.width,rect.height,Math.min(devicePixelRatio||1,this.renderer.shadows?1.7:1.0));
     const extent=(aspect<1.15?10.1/aspect:9.0)/this.zoom;
-    const eye=[Math.sin(this.angle)*24*Math.cos(this.pitch),Math.sin(this.pitch)*24,Math.cos(this.angle)*24*Math.cos(this.pitch)];
-    this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,[0,.3,0]));
+    const target=this.captureTarget??[0,.3,0];
+    const eye=[target[0]+Math.sin(this.angle)*24*Math.cos(this.pitch),target[1]-.3+Math.sin(this.pitch)*24,target[2]+Math.cos(this.angle)*24*Math.cos(this.pitch)];
+    this.renderer.camera=eye;this.city.marina.selectDetail(rect.height/(2*extent));this.city.districts.selectDetail(rect.height/(2*extent));this.city.civic.selectDetail(rect.height/(2*extent));this.city.harmony.selectDetail(rect.height/(2*extent));
+    this.vp=multiply(ortho(-extent*aspect,extent*aspect,-extent,extent,.1,80),lookAt(eye,target));
     const objects=[{mesh:this.staticMesh,model:identity()},...this.city.objects(this.ambientTime,this.renderer.weather)];if(this.ownerMesh)objects.push({mesh:this.ownerMesh});
     if(this.state)for(let i=0;i<this.state.players.length;i++){
       const p=this.state.players[i];if(p.bankrupt)continue;const path=this.paths[i],progress=motionProgress(path,t,this.reduced),total=progress*path.steps,step=Math.floor(total),fraction=total-step;
