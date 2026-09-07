@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {BOARD} from '../src/game/board.js';
 import {deriveCity} from '../src/scene/city-state.js';
 import {civicFixtures} from '../scripts/assets/civic-fixtures.mjs';
-import {HARMONY_SPEC,HARMONY_LOTS,HARMONY_CACHE_LIMIT,Harmony} from '../src/scene/harmony.js';
+import {HARMONY_SPEC,HARMONY_LOTS,HARMONY_CACHE_LIMIT,HARMONY_CACHE_BYTES,Harmony} from '../src/scene/harmony.js';
 import {createPublicAsset,PUBLIC_FACTORIES,PUBLIC_BUDGETS,PublicRealm} from '../src/scene/finish/public.js';
 import {cityField,FIELD_SIZE} from '../src/scene/finish/field.js';
 import {detailAtlas} from '../src/scene/finish/materials.js';
@@ -27,7 +27,7 @@ test('public equipment two-LOD batch, no reconstruction on time/settings, releas
 test('harmony bounds its cache and updates mortgage/owner without changing gameplay',()=>{
  const r=fake(),h=new Harmony(r),s=structuredClone(fixture.checkpoints.late.state),initial=JSON.stringify(s);h.setCity(deriveCity(s));const n=h.builds;
  for(let i=0;i<100;i++)h.setCity(deriveCity(structuredClone(s)));assert.equal(h.builds,n);assert.equal(JSON.stringify(s),initial);
- for(let l=0;l<4;l++)for(const id of HARMONY_LOTS){s.properties[id].owner=s.players[0].id;s.properties[id].level=l;h.setCity(deriveCity(s));h.selectDetail(80);h.selectDetail(40);assert.ok(h.cache.size<=HARMONY_CACHE_LIMIT);}
+ for(let l=0;l<4;l++)for(const id of HARMONY_LOTS){s.properties[id].owner=s.players[0].id;s.properties[id].level=l;h.setCity(deriveCity(s));h.selectDetail(80);h.selectDetail(40);assert.ok(h.cache.size<=HARMONY_CACHE_LIMIT);assert.ok(h.objects()&&h.stats.cachedGpuBytes<=HARMONY_CACHE_BYTES);assert.ok(h.entries.every(e=>h.cache.has(e.key)));}
  s.properties[22].mortgaged=true;h.setCity(deriveCity(s));assert.equal(h.entries.find(p=>p.id===22).closed,1);h.destroy();assert.equal(r.live.size,0);
 });
 test('contact/light field is deterministic, small, reads actual vacant and mortgaged states',()=>{
